@@ -2,8 +2,8 @@
 #include <stdio.h>
 
 // each player has a name and a grid: 
-typedef struct palyer Player;
-struct palyer
+typedef struct player Player;
+struct player
 {
     char *name;
     char **grid;
