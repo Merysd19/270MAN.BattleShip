@@ -138,4 +138,6 @@ submarine, 2 cells
 
 void placeShips(Player *player)
 {
+    //code
+    
 }
