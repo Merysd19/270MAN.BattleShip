@@ -56,7 +56,7 @@ void modifyingGrid(char** grid, char* mode){
 
 struct player{
     char* name;
-    int grid[10][10];
+    char** grid;
 };
 
 void playerName(struct player *player){
