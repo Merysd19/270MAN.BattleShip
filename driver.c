@@ -136,8 +136,63 @@ submarine, 2 cells
 // how to track if a ship was sunk
 // ->need a another function, moveShips?
 
-void placeShips(Player *player)
-{
-    //code
-    
+// Function to place a ship on the grid
+int placeShip(Player *player, int shipSize, const char *shipName) {
+    char input[10];
+    char orientation;
+    int row, col;
+
+    // User input 
+    printf("Enter coordinates for %s (e.g., B3 H/V): ", shipName);
+    scanf("%s %c", input, &orientation);
+
+    // Convert input to row and column
+    col = input[0] - 'A'; // Convert letter to column index (A=0,B=1...)
+    row = atoi(input + 1) - 1; //(1=0,2=1.. to match code index )
+
+    // Validate input
+    if (col < 0 || col >= GRID_SIZE || row < 0 || row >= GRID_SIZE) {
+        printf("Invalid coordinates :(\n");
+        return -1;
+    }
+
+    // Validate ship placement 
+    if (orientation == 'H') { //horizental checking 
+        if (col + shipSize > GRID_SIZE) { //col here is the starting col:  (col+shipSize)=ending col
+            printf("Ship does not fit horizontally :(\n");
+            return -1;
+        }
+        // Check for overlapping
+        for (int i = 0; i < shipSize; i++) {
+            if (player->grid[row][col + i] != '~') { //overlap: a cell is not ~ 
+                printf("Ship overlaps with another ship :(\n");
+                return -1;
+            }
+        }
+        // Place the ship
+        for (int i = 0; i < shipSize; i++) {
+            player->grid[row][col + i] = 'S'; // Mark the ship on the grid
+        }
+    } else if (orientation == 'V') { //vertical checking 
+        if (row + shipSize > GRID_SIZE) {
+            printf("Ship does not fit vertically :(\n");
+            return -1;
+        }
+        // Check for overlapping
+        for (int i = 0; i < shipSize; i++) {
+            if (player->grid[row + i][col] != '~') {
+                printf("Ship overlaps with another :(\n");
+                return -1;
+            }
+        }
+        // Place the ship
+        for (int i = 0; i < shipSize; i++) {
+            player->grid[row + i][col] = 'S'; // Mark the ship on the grid
+        }
+    } else {
+        printf("Invalid orientation. Use 'H' for horizontal or 'V' for vertical.\n");
+        return -1;
+    }
+
+    return 0; // Ship is now placed 
 }
