@@ -151,14 +151,14 @@ int placeShip(Player *player, int shipSize, const char *shipName) {
     row = atoi(input + 1) - 1; //(1=0,2=1.. to match code index )
 
     // Validate input
-    if (col < 0 || col >= GRID_SIZE || row < 0 || row >= GRID_SIZE) {
+    if (col < 0 || col >= 10 || row < 0 || row >= 10) {
         printf("Invalid coordinates :(\n");
         return -1;
     }
 
     // Validate ship placement 
     if (orientation == 'H') { //horizental checking 
-        if (col + shipSize > GRID_SIZE) { //col here is the starting col:  (col+shipSize)=ending col
+        if (col + shipSize > 10) { //col here is the starting col:  (col+shipSize)=ending col
             printf("Ship does not fit horizontally :(\n");
             return -1;
         }
@@ -174,7 +174,7 @@ int placeShip(Player *player, int shipSize, const char *shipName) {
             player->grid[row][col + i] = 'S'; // Mark the ship on the grid
         }
     } else if (orientation == 'V') { //vertical checking 
-        if (row + shipSize > GRID_SIZE) {
+        if (row + shipSize > 10) {
             printf("Ship does not fit vertically :(\n");
             return -1;
         }
@@ -196,3 +196,4 @@ int placeShip(Player *player, int shipSize, const char *shipName) {
 
     return 0; // Ship is now placed 
 }
+
