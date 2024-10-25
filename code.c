@@ -310,5 +310,5 @@ void clearGrid(Player *player) {
     for (int i = 0; i < 10; i++) {
         free(player->grid[i]); // Free each row
     }
-    free(player->grid); // Free the array of rows
+    free(player->grid); // Free the array of rowss
 }
