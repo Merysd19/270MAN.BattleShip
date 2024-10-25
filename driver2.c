@@ -274,6 +274,9 @@ void placeShips(Player *player)
             i++;
         }
     }
+
+    getchar(); 
+    
     printf("Done placing your ships! Press enter to proceed\n");
 
     getchar(); // wait for the user to enter a character ('\n') before clearing the screen
