@@ -190,9 +190,11 @@ void placeShips(Player *player) {
     printf("Done placing your ships! Press enter to proceed\n");
     getchar(); // Clear the newline from the input buffer
     getchar(); // Wait for the user to press enter
-    system("cls"); // Clear the screen (Use "clear" for Unix-based systems)
+    system("cls"); // Clear the screen 
 }
 
+
+//-----------------------------------------------Part 2: Game Play--------------------------------------------------
 void playerTurn(Player *attacker, Player *defender) {
     char action;
     printf("%s's turn! Choose your action:\n", attacker->name);
