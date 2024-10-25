@@ -8,6 +8,7 @@ struct player
 {
     char name[100]; // reading at most 99 characters for player's name
     char **grid;
+    //heyyyyyyyyyyyyyyyyyyyyyyyyyyy
 };
 
 // greate a 10x10 grid, initially filled with '~'
