@@ -31,10 +31,9 @@ int **createGrid();
 void displayGrid(Player *player);
 
 // ship placement:
-int canPlaceShip(Player *player, int shipSize, int row, int col, char orientation);
 void placeShips(Player *player);
-
-// moves:
+void placeShip(Player *player, int shipSize);
+int canPlaceShip(Player *player, int shipSize, int row, int col, char orientation);
 
 void freeAll(Player player);
 
@@ -44,7 +43,7 @@ int mode;
 int main()
 {
 
-    /*-----------------------------------------------Game Setup and Initialization--------------------------------------------------*/
+    /*-------------------------------------------------Game Setup and Initialization-------------------------------------------------------*/
 
     srand(time(NULL)); // seed the random number generator with current time
 
@@ -102,12 +101,17 @@ int main()
     system("cls");
     placeShips(otherPlayer);
 
-    // free memory allocated for the players
+    printf("Now we will proceed with the game :)\n");
+    printf("\n");
+
+    // free memory allocated for the players:
     freeAll(player1);
     freeAll(player2);
 
     return 0;
 }
+
+/*-------------------------------------------------Game Setup and Initialization-------------------------------------------------------*/
 
 Player createPlayer()
 {
@@ -210,48 +214,9 @@ void placeShips(Player *player)
     printf("\n");
     printf("Your input:\n");
 
-    for (int i = 5; i > 1; i--)
+    for (int i = 5; i > 1; i--) // i = ship size
     {
-        char *name = getShipName(i);
-        int rw;
-        char cl, orientation;
-
-        // read position:
-        printf("\n(ship name: %s, ship size: %d)\n", name, i);
-        printf("column (A->J): ");
-        scanf(" %c", &cl);
-        printf("row (1->10): ");
-        scanf("%d", &rw);
-        printf("orientation (h/v): ");
-        scanf_s(" %c", &orientation, 1);
-        printf("\n");
-
-        // map input to coordinates on the grid with 0-based index:
-        int col = cl - 65;
-        int row = rw - 1;
-
-        // validate coordinates, and place ship or try again:
-        if (canPlaceShip(player, i, row, col, orientation)) // place this ship, then move on to the next
-        {
-            if (orientation == 'h')
-            {
-                for (int j = col; j < col + i; j++)
-                {
-                    player->grid[row][j] = i;
-                }
-            }
-            else
-            {
-                for (int j = row; j < row + i; j++)
-                {
-                    player->grid[j][col] = i;
-                }
-            }
-        }
-        else // try agin with same ship
-        {
-            i++;
-        }
+        placeShip(player, i);
     }
 
     getchar();
@@ -260,6 +225,50 @@ void placeShips(Player *player)
 
     getchar();
     system("cls");
+}
+
+void placeShip(Player *player, int shipSize)
+{
+    char *name = getShipName(shipSize);
+    int rw;
+    char cl, orientation;
+
+    // read position:
+    printf("\n(ship name: %s, ship size: %d)\n", name, shipSize);
+    printf("column (A->J): ");
+    scanf(" %c", &cl);
+    printf("row (1->10): ");
+    scanf("%d", &rw);
+    printf("orientation (h/v): ");
+    scanf_s(" %c", &orientation, 1);
+    printf("\n");
+
+    // map input to coordinates on the grid with 0-based index:
+    int col = cl - 65;
+    int row = rw - 1;
+
+    // validate coordinates, and place ship or try again:
+    if (canPlaceShip(player, shipSize, row, col, orientation)) // place this ship, then move on to the next
+    {
+        if (orientation == 'h')
+        {
+            for (int j = col; j < col + shipSize; j++)
+            {
+                player->grid[row][j] = shipSize;
+            }
+        }
+        else
+        {
+            for (int j = row; j < row + shipSize; j++)
+            {
+                player->grid[j][col] = shipSize;
+            }
+        }
+    }
+    else // try agin with same ship
+    {
+        placeship(player, shipSize);
+    }
 }
 
 int canPlaceShip(Player *player, int shipSize, int row, int col, char orientation)
