@@ -109,15 +109,15 @@ int main()
 
     // read game mode:
     printf("Welcome to MAN.BattleShip! Please choose the tracking difficulty level by entering '0' for easy and '1' for hard: ");
-    scanf_s("%d", &mode);
+    scanf("%d", &mode);
 
     printf("\n");
 
     // read players names:
     printf("Please enter your names!\nPlayer1: ");
-    scanf_s("%99s", player1.name, 100);
+    scanf("%99s", player1.name, 100);
     printf("Player2: ");
-    scanf_s("%99s", player2.name, 100);
+    scanf("%99s", player2.name, 100);
 
     printf("\n");
 
@@ -343,7 +343,7 @@ void placeShip(Player *player, int shipSize)
     printf("row (1->10): ");
     scanf("%d", &rw);
     printf("orientation (H/V): ");
-    scanf_s(" %c", &orientation, 1);
+    scanf(" %c", &orientation, 1);
     printf("\n");
 
     // map input to coordinates on the grid with 0-based index:
