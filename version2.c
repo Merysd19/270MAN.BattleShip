@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <string.h>
+#include <string.h> //compiled 
 
 #define MOVES_COUNT 5
 #define SHIPS_COUNT 4
@@ -20,14 +20,13 @@ typedef struct move
     int shipsSunkToUnlock;
 } Move;
 
-struct cell 
+typedef struct cell // Define and typedef `Cell` the same time
 {
     int col;
     int row;
-    Cell* next;
-};
+    struct cell* next; // Correct self-referencing with `struct cell*`
+} Cell;
 
-typedef struct cell Cell;
 
 typedef struct smokedCells
 {
