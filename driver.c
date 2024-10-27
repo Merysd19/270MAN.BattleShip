@@ -1,4 +1,5 @@
 /*run command prompt for optimal "clear screen" results*/ //TEST 
+//needs to be compiled
 
 #include <stdlib.h>
 #include <stdio.h>
