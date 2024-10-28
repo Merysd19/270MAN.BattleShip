@@ -560,7 +560,7 @@ int fire(Player *player, Player *opponent)
             opponent->grid[row][col] = hit;
             printf("\n\nResult: hit!\n\n");
 
-            for (int j = 0; j < SHIPS_COUNT; i++)
+            for (int j = 0; j < SHIPS_COUNT; j++)
             {
                 if (opponent->ships[j].name == getShipName(i))
                 {
@@ -681,7 +681,7 @@ int artillery(Player *player, Player *opponent)
                         opponent->grid[row][col] = hit;
                         printf("\n\nResult: hit!\n\n");
 
-                        for (int k = 0; k < SHIPS_COUNT; i++)
+                        for (int k = 0; k < SHIPS_COUNT; k++)
                         {
                             if (opponent->ships[k].name == getShipName(gridSymbol))
                             {
@@ -740,7 +740,7 @@ int torpedo(Player *player, Player *opponent)
                 {
                     opponent->grid[row][i] = hit;
                     printf("\n\nResult: hit!\n\n");
-                    for (int k = 0; k < SHIPS_COUNT; i++)
+                    for (int k = 0; k < SHIPS_COUNT; k++)
                     {
                         if (opponent->ships[k].name == getShipName(gridSymbol))
                         {
@@ -767,7 +767,7 @@ int torpedo(Player *player, Player *opponent)
                 {
                     opponent->grid[i][col] = hit;
                     printf("\n\nResult: hit!\n\n");
-                    for (int k = 0; k < SHIPS_COUNT; i++)
+                    for (int k = 0; k < SHIPS_COUNT; k++)
                     {
                         if (opponent->ships[k].name == getShipName(gridSymbol))
                         {
