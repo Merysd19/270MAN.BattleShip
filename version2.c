@@ -505,36 +505,35 @@ int makeMove(Player *player, Player *opponent)
     printf("Enter the identifier for your chosen move: ");
     scanf(" %d", &move);
 
-    int result = 0;
+    int result = 0; 
+
     switch (move)
     {
     case 0:
         result = fire(player, opponent);
-
+        break;
     case 1:
         result = radarSweep(player, opponent);
-
+        break;
     case 2:
         result = smokeScreen(player, opponent);
-
+        break;
     case 3:
         result = artillery(player, opponent);
-
+        break;
     case 4:
         result = torpedo(player, opponent);
-
-    default:
-        printf("Invalid input! Please chose again from the list of available moves using the specified format\n\n");
-        makeMove(player, opponent);
         break;
+    default:
+        printf("Invalid input! Please choose again from the list of available moves using the specified format\n\n");
+        return makeMove(player, opponent); 
     }
 
     if (result) {
-        player->moves[move].countAvailable--;
+        player->moves[move].countAvailable--; 
     }
 
     return result;
-    
 }
 
 int fire(Player *player, Player *opponent)
