@@ -241,7 +241,7 @@ SmokedCells *createSmokedList()
         exit(1);
     }
     smokedCells->head = NULL;
-    return &smokedCells->head;
+    return smokedCells;
 }
 
 int **createGrid()
