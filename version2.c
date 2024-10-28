@@ -502,40 +502,49 @@ void displayAvailableMoves(Player *player, Player *opponent)
 int makeMove(Player *player, Player *opponent)
 {
     int move;
-    printf("Enter the identifier for your chosen move: ");
-    scanf(" %d", &move);
+    int result = 0;
 
-    int result = 0; 
-
-    switch (move)
+    while (1) 
     {
-    case 0:
-        result = fire(player, opponent);
-        break;
-    case 1:
-        result = radarSweep(player, opponent);
-        break;
-    case 2:
-        result = smokeScreen(player, opponent);
-        break;
-    case 3:
-        result = artillery(player, opponent);
-        break;
-    case 4:
-        result = torpedo(player, opponent);
-        break;
-    default:
-        printf("Invalid input! Please choose again from the list of available moves using the specified format\n\n");
-        return makeMove(player, opponent); 
-    }
+        printf("Enter the identifier for your chosen move: ");
+        scanf(" %d", &move);
 
-    if (result) {
-        player->moves[move].countAvailable--; 
-    }
+        if (move < 0 || move >= MOVES_COUNT)
+        {
+            printf("Invalid input or move unavailable! Please choose again from the list of available moves.\n\n");
+            continue; 
+        }
 
-    return result;
+        switch (move)
+        {
+        case 0:
+            result = fire(player, opponent);
+            break;
+        case 1:
+            result = radarSweep(player, opponent);
+            break;
+        case 2:
+            result = smokeScreen(player, opponent);
+            break;
+        case 3:
+            result = artillery(player, opponent);
+            break;
+        case 4:
+            result = torpedo(player, opponent);
+            break;
+        }
+
+        if (result) 
+        {
+            player->moves[move].countAvailable--;
+            return 1; 
+        }
+        else
+        {
+            return 0; 
+        }
+    }
 }
-
 int fire(Player *player, Player *opponent)
 {
     int rw;
