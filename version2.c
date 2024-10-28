@@ -1,3 +1,10 @@
+/*
+read all inputs from the user as char
+solves: crashing when entering a letter for move choice for example
+issue: if entered move choice is '22', it reads only the first 2 and considers it a valid input, then the other '2' stays in the buffer
+same when reading mode
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -120,7 +127,7 @@ int strcmpIgnoreNull(char *str1, char *str2);
 void freeAll(Player player);
 
 // tracking difficulty level
-int mode;
+char mode;
 
 int main()
 {
@@ -133,16 +140,23 @@ int main()
     Player player2 = createPlayer();
 
     // read game mode:
-    printf("Welcome to MAN.BattleShip! Please choose the tracking difficulty level by entering '0' for easy and '1' for hard: ");
-    scanf("%d", &mode);
+    printf("Welcome to MAN.BattleShip! \n\nPlease choose the tracking difficulty level by entering '0' for easy and '1' for hard: ");
+    while (1)
+    {
+    scanf(" %c", &mode);
+    if (mode - '0' == 0 || mode - '0'== 1)
+        break;
+    else
+        printf("\nInvalid input format! Please try again while following the specified input format directions: ");
+    }
 
     printf("\n");
 
     // read players names:
     printf("Please enter your names!\nPlayer1: ");
-    scanf("%99s", player1.name, 100);
+    scanf_s(" %99s", player1.name, 100);
     printf("Player2: ");
-    scanf("%99s", player2.name, 100);
+    scanf_s(" %99s", player2.name, 100);
 
     printf("\n");
 
@@ -314,7 +328,7 @@ void displayGrid(Player *player)
             switch (player->grid[i][j])
             {
             case miss:
-                if (mode == 0) // easy mode, show miss
+                if (mode == '0') // easy mode, show miss
                     c = 'o';
                 else // hard mode, don't show miss
                     c = '~';
@@ -359,7 +373,7 @@ void placeShips(Player *player)
 void placeShip(Player *player, int shipSize)
 {
     char *name = getShipName(shipSize);
-    int rw;
+    char rw;
     char cl, orientation;
 
     // read position:
@@ -367,14 +381,14 @@ void placeShip(Player *player, int shipSize)
     printf("column (A->J): ");
     scanf(" %c", &cl);
     printf("row (1->10): ");
-    scanf("%d", &rw);
+    scanf(" %c", &rw);
     printf("orientation (H/V): ");
     scanf(" %c", &orientation, 1);
     printf("\n");
 
     // map input to coordinates on the grid with 0-based index:
-    int col = cl - 65;
-    int row = rw - 1;
+    int col = cl - 'A';
+    int row = rw - '1';
 
     // validate coordinates, and place ship or try again:
     if (canPlaceShip(player, shipSize, row, col, orientation)) // place this ship, then move on to the next
@@ -404,7 +418,7 @@ int canPlaceShip(Player *player, int shipSize, int row, int col, char orientatio
 {
     if (col < 0 || col > 9 || row < 0 || row > 9 || (orientation != 'H' && orientation != 'V'))
     {
-        printf("Invalid input format! Please try again while following the specified input format directions:\n");
+        printf("Invalid input format! Please try again while following the specified input format directions:\n\n");
         return 0;
     }
     else
@@ -486,6 +500,10 @@ void takeTurn(Player *player, Player *opponent)
         printf("\n%s's updated grid: \n\n", opponent->name);
         displayGrid(opponent);
     }
+    else 
+    {
+        getchar();
+    }
     getchar();
     printf("\nPress enter to proceed!\n");
     getchar();
@@ -526,17 +544,19 @@ void displayAvailableMoves(Player *player, Player *opponent)
     printf("\n");
 }
 
-int makeMove(Player *player, Player *opponent) // handle inputs that are not numbers
+int makeMove(Player *player, Player *opponent)
 {
-    int move;
+    char move;
     int result = 0;
 
     while (1)
     {
         printf("Enter the identifier for your chosen move: ");
-        scanf(" %d", &move);
+        scanf(" %c", &move);
 
-        if (move < 0 || move >= MOVES_COUNT || isalpha((move)))
+        move = move - '0';
+
+        if (move < 0 || move >= MOVES_COUNT)
         {
             printf("\nInvalid input! Please chose again from the list of available moves using the specified format\n\n");
             continue;
@@ -584,13 +604,13 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
 
 int fire(Player *player, Player *opponent)
 {
-    int rw;
+    char rw;
     char cl;
 
     printf("\nEnter coordinate (e.g. B3): ");
-    scanf(" %c%d", &cl, &rw);
+    scanf(" %c%c", &cl, &rw);
 
-    int row = rw - 1;
+    int row = rw - '1';
     int col = cl - 'A';
 
     if (row < 0 || row > 9 || col < 0 || col > 9)
@@ -628,13 +648,13 @@ int fire(Player *player, Player *opponent)
 
 int radarSweep(Player *player, Player *opponent)
 {
-    int rw;
+    char rw;
     char cl;
 
     printf("\nEnter top-left coordinate (e.g. B3): ");
-    scanf(" %c%d", &cl, &rw);
+    scanf(" %c%c", &cl, &rw);
 
-    int row = rw - 1;
+    int row = rw - '1';
     int col = cl - 'A';
 
     if (validTopLeftCoordinate(row, col))
@@ -662,13 +682,13 @@ int radarSweep(Player *player, Player *opponent)
 
 int smokeScreen(Player *player, Player *opponent)
 {
-    int rw;
+    char rw;
     char cl;
 
     printf("\nEnter top-left coordinate (e.g. B3): ");
-    scanf(" %c%d", &cl, &rw);
+    scanf(" %c%c", &cl, &rw);
 
-    int row = rw - 1;
+    int row = rw - '1';
     int col = cl - 'A';
 
     if (validTopLeftCoordinate(row, col))
@@ -700,13 +720,13 @@ int smokeScreen(Player *player, Player *opponent)
 
 int artillery(Player *player, Player *opponent)
 {
-    int rw;
+    char rw;
     char cl;
 
     printf("\nEnter top-left coordinate (e.g. B3): ");
-    scanf(" %c%d", &cl, &rw);
+    scanf(" %c%c", &cl, &rw);
 
-    int row = rw - 1;
+    int row = rw - '1';
     int col = cl - 'A';
 
     if (validTopLeftCoordinate(row, col))
