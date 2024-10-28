@@ -468,15 +468,12 @@ void takeTurn(Player *player, Player *opponent)
 
 void displayAvailableMoves(Player *player, Player *opponent)
 {
-    for (int i = 0; i < MOVES_COUNT; i++)
+    printf("FIRE, targets a cell of the opponent's grid.\n");
+    printf("Input format: identifier: '0', coordinate (e.g. B3)\n\n");
+    for (int i = 1; i < MOVES_COUNT; i++)
     {
         if (player->moves[i].countAvailable > 0)
         {
-            if(i=0)
-            {
-                printf("FIRE, targets a cell of the opponent's grid.\n");
-                printf("Input format: identifier: '0', coordinate (e.g. B3)\n\n");
-            }
             if (i == 1)
             {
                 printf("RADAR SWEEP, reveals whether there are any opponent ships in a specified 2x2 area of their grid without showing exact locations of ships.\n");
