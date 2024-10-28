@@ -519,13 +519,12 @@ int makeMove(Player *player, Player *opponent)
             break;
         }
 
-        if(checkAvailable(player,3) || checkAvailable(player,4)){
-            if(move != 3){
+        if(checkAvailable(player,3) && move != 3){
                 player->moves[3].countAvailable--;
-            }else if(move != 4){
+        }else if(checkAvailable(player,3) && move != 4){
                 player->moves[4].countAvailable--;
-            }
         }
+        
 
         switch (move)
         {
