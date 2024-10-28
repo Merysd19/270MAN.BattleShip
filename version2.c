@@ -536,7 +536,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
         printf("Enter the identifier for your chosen move: ");
         scanf(" %d", &move);
 
-        if (move < 0 || move >= MOVES_COUNT)
+        if (move < 0 || move >= MOVES_COUNT || isalpha((move)))
         {
             printf("\nInvalid input! Please chose again from the list of available moves using the specified format\n\n");
             continue;
