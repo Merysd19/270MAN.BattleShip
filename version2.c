@@ -515,6 +515,18 @@ int makeMove(Player *player, Player *opponent)
             continue; 
         }
 
+        if(!checkAvailable(player, move)){
+            break;
+        }
+
+        if(checkAvailable(player,3) || checkAvailable(player,4)){
+            if(move != 3){
+                player->moves[3].countAvailable--;
+            }else if(move != 4){
+                player->moves[4].countAvailable--;
+            }
+        }
+
         switch (move)
         {
         case 0:
@@ -589,9 +601,7 @@ int fire(Player *player, Player *opponent)
 }
 
 int radarSweep(Player *player, Player *opponent)
-{
-    if (checkAvailable(player, 1))
-    {
+{   
         int rw;
         char cl;
 
@@ -621,14 +631,10 @@ int radarSweep(Player *player, Player *opponent)
             printf("\n\nResult: no enemy ships found!");
             return 1;
         }
-    }
-    return 0;
 }
 
 int smokeScreen(Player *player, Player *opponent)
 {
-    if (checkAvailable(player, 2))
-    {
         int rw;
         char cl;
 
@@ -661,14 +667,10 @@ int smokeScreen(Player *player, Player *opponent)
         getchar();
         system("cls");
         return 1;
-    }
-    return 0;
 }
 
 int artillery(Player *player, Player *opponent)
 {
-    if (checkAvailable(player, 3))
-    {
         int rw;
         char cl;
 
@@ -710,15 +712,11 @@ int artillery(Player *player, Player *opponent)
             }
         }
         return 1;
-    }
-    return 0;
 }
 
 int torpedo(Player *player, Player *opponent)
 {
-    if (checkAvailable(player, 4))
-    {
-        // read target row or column
+// read target row or column
         char input;
         int row = -1;
         int col = -1;
@@ -794,8 +792,6 @@ int torpedo(Player *player, Player *opponent)
             }
             return 1;
         }
-    }
-    return 0;
 }
 
 int checkAvailable(Player *player, int move)
