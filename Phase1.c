@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <string.h> //compiled
+#include <string.h> 
 #include <math.h>
 
 #define MOVES_COUNT 5
