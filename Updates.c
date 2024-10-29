@@ -250,12 +250,12 @@ int chooseDifficulty()
             }
             else
             {
-                printf("\nInvalid input! Please choose either '0' for easy or '1' for hard.\n\n");
+                printf("\nInvalid input! Please choose either '0' for easy or '1' for hard : ");
             }
         }
         else
         {
-            printf("\nInvalid input! Please enter a valid number (0 or 1).\n\n");
+            printf("\nInvalid input! Please enter a valid number (0 or 1): ");
         }
     }
 }
@@ -643,7 +643,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
         }
 
         // If input is not a valid number or not in range
-        printf("\nInvalid input! Please choose again from the list of available moves using the specified format\n\n");
+        printf("\nInvalid input! Please choose again from the list of available moves using the specified format:\n");
     }
     
     return 1; // Return success
