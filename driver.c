@@ -1,9 +1,10 @@
-/*run command prompt for optimal "clear screen" results*/
+/*run from command prompt for optimal "clear screen" resutls*/
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <string.h>
+#include <string.h> //compiled
+#include <math.h>
 
 #define MOVES_COUNT 5
 #define SHIPS_COUNT 4
@@ -19,13 +20,14 @@ typedef struct move
 {
     char name[50];
     int countAvailable;
+    int shipsSunkToUnlock;
 } Move;
 
-typedef struct cell
+typedef struct cell // Define and typedef `Cell` the same time
 {
     int col;
     int row;
-    struct cell *next;
+    struct cell *next; // Correct self-referencing with `struct cell*`
 } Cell;
 
 typedef struct smokedCells
@@ -38,7 +40,7 @@ typedef struct player
 {
     char name[100];
     int **grid;
-    int shipsCount;
+    int shipsSunk;
     Ship *ships;
     Move *moves;
     SmokedCells *smokedCells;
@@ -60,36 +62,64 @@ enum cellStates
 // FUNCTIONS:
 
 Player createPlayer();
+
 Ship *createShips();
+
 Move *createMoves();
+
 SmokedCells *createSmokedList();
 
 // grid:
 int **createGrid();
+
 void displayGrid(Player *player);
 
 // ship placement:
 void placeShips(Player *player);
+
 void placeShip(Player *player, int shipSize);
+
 int canPlaceShip(Player *player, int shipSize, int row, int col, char orientation);
+
 char *getShipName(int i); // i: 2->5
+
+void clearInputBuffer();
 
 // game play:
 void takeTurn(Player *player, Player *opponent);
+
 void displayAvailableMoves(Player *player, Player *opponent);
+
 int makeMove(Player *player, Player *opponent);
-int gameOver(Player *player, Player *opponent);
+
+int gameOver(Player *opponent, Player *player);
 
 // moves + their helper functions:
 int fire(Player *player, Player *opponent);
+
 int radarSweep(Player *player, Player *opponent);
+
 int smokeScreen(Player *player, Player *opponent);
+
 int artillery(Player *player, Player *opponent);
+
 int torpedo(Player *player, Player *opponent);
+
 int checkAvailable(Player *player, int move);
+
 int validTopLeftCoordinate(int row, int col);
+
 Cell *createSmokedCell(int col, int row);
+
 int inSmokedList(Player *opponent, int row, int col);
+
+void updateGameState(Player *opponent, Player *player);
+
+void updateMoves(Player *opponent, Player *player);
+
+void checkOneRoundMoves(Player *player, int move);
+
+int strcmpIgnoreNull(char *str1, char *str2);
 
 void freeAll(Player player);
 
@@ -107,16 +137,15 @@ int main()
     Player player2 = createPlayer();
 
     // read game mode:
-    printf("Welcome to MAN.BattleShip! Please choose the tracking difficulty level by entering '0' for easy and '1' for hard: ");
-    scanf_s("%d", &mode);
 
+    mode = chooseDifficulty();
     printf("\n");
 
     // read players names:
     printf("Please enter your names!\nPlayer1: ");
-    scanf_s("%99s", player1.name, 100);
+    scanf_s(" %99s", player1.name, 100);
     printf("Player2: ");
-    scanf_s("%99s", player2.name, 100);
+    scanf_s(" %99s", player2.name, 100);
 
     printf("\n");
 
@@ -168,10 +197,10 @@ int main()
     while (1)
     {
         takeTurn(startingPlayer, otherPlayer);
-        if (gameOver(startingPlayer, otherPlayer))
+        if (gameOver(otherPlayer, startingPlayer))
             break;
         takeTurn(otherPlayer, startingPlayer);
-        if (gameOver(otherPlayer, startingPlayer))
+        if (gameOver(startingPlayer, otherPlayer))
             break;
     }
 
@@ -183,12 +212,55 @@ int main()
 }
 
 /*-------------------------------------------------Game Setup and Initialization-------------------------------------------------------*/
+int chooseDifficulty()
+{
+    char input[10]; // Buffer for input
+    int mode;
 
+    printf("Welcome to MAN.BattleShip!\n\nPlease choose the tracking difficulty level by entering '0' for easy and '1' for hard: ");
+
+    while (1) // Loop until valid input is received
+    {
+        // Read the input
+        scanf("%s", input); // Read input as a string
+
+        // Validate if the input is a number
+        int validInput = 1; // Flag to check if input is valid
+        for (int i = 0; i < strlen(input); i++)
+        {
+            if (!isdigit(input[i])) // Check if each character is a digit
+            {
+                validInput = 0; // Not a valid number
+                break;
+            }
+        }
+
+        // If the input is valid and a number
+        if (validInput)
+        {
+            mode = atoi(input); // Convert string to integer
+
+            // Check if the move is either 0 or 1
+            if (mode == 0 || mode == 1)
+            {
+                return mode; // Valid input received, return the difficulty level
+            }
+            else
+            {
+                printf("\nInvalid input! Please choose either '0' for easy or '1' for hard : ");
+            }
+        }
+        else
+        {
+            printf("\nInvalid input! Please enter a valid number (0 or 1): ");
+        }
+    }
+}
 Player createPlayer()
 {
     Player player;
     player.grid = createGrid();
-    player.shipsCount = 4;
+    player.shipsSunk = 0;
     player.ships = createShips();
     player.moves = createMoves();
     player.smokedCells = createSmokedList();
@@ -221,10 +293,13 @@ Move *createMoves()
     }
     const char *names[MOVES_COUNT] = {"FIRE", "RADAR SWEEP", "SMOKE SCREEN", "ARTILLERY", "TORPEDO"};
     int counts[MOVES_COUNT] = {-1, 3, 0, 0, 0};
+    const int valueToUnlock[MOVES_COUNT] = {0, 0, 1, 1, 3};
+
     for (int i = 0; i < MOVES_COUNT; i++)
     {
         strcpy(moves[i].name, names[i]);
         moves[i].countAvailable = counts[i];
+        moves[i].shipsSunkToUnlock = valueToUnlock[i];
     }
     return moves;
 }
@@ -238,7 +313,7 @@ SmokedCells *createSmokedList()
         exit(1);
     }
     smokedCells->head = NULL;
-    return &smokedCells->head;
+    return smokedCells;
 }
 
 int **createGrid()
@@ -310,9 +385,9 @@ void placeShips(Player *player)
     printf("\n");
     printf("Please provide the coordinates and orientation to place each ship on the grid (e.g. B3, Horizontal).\n");
     printf("The coordinates indicate the starting position of the ship. Horizontal orientation moves from left to right, and vertical orientation moves from top to bottom.\n");
-    printf("Follow this exact format: \ncoordinates: column: CAPITAL_LETTER (A->J), row: number (1->10)\norientation: 'H' for horizontal, 'V' for vertical\n");
+    printf("Follow this exact format: \ncoordinates: ColumnRow  (CapitalLetter[A->J]Number[1->10]) (e.g. B3)\norientation: 'H' for horizontal, 'V' for vertical\n");
     printf("\n");
-    printf("Your input:\n\n");
+    printf("Your input:\n");
 
     for (int i = 5; i > 1; i--) // i = ship size
     {
@@ -334,17 +409,16 @@ void placeShip(Player *player, int shipSize)
     char cl, orientation;
 
     // read position:
-    printf("(ship name: %s, ship size: %d)\n", name, shipSize);
-    printf("column (A->J): ");
-    scanf(" %c", &cl);
-    printf("row (1->10): ");
-    scanf("%d", &rw);
+    printf("\n(ship name: %s, ship size: %d)\n", name, shipSize);
+    printf("coordinates (e.g. B3): ");
+    scanf(" %c%d", &cl, &rw);
+    clearInputBuffer();
     printf("orientation (H/V): ");
-    scanf_s(" %c", &orientation, 1);
+    scanf(" %c", &orientation);
     printf("\n");
 
     // map input to coordinates on the grid with 0-based index:
-    int col = cl - 65;
+    int col = cl - 'A';
     int row = rw - 1;
 
     // validate coordinates, and place ship or try again:
@@ -375,7 +449,7 @@ int canPlaceShip(Player *player, int shipSize, int row, int col, char orientatio
 {
     if (col < 0 || col > 9 || row < 0 || row > 9 || (orientation != 'H' && orientation != 'V'))
     {
-        printf("\nInvalid input format! Please try again while following the specified input format directions:\n\n");
+        printf("Invalid input format! Please try again while following the specified input format directions:\n\n");
         return 0;
     }
     else
@@ -437,6 +511,10 @@ char *getShipName(int i)
     return name;
 }
 
+void clearInputBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
 /*-----------------------------------------------------------Game Play-----------------------------------------------------------------*/
 
 void takeTurn(Player *player, Player *opponent)
@@ -453,8 +531,13 @@ void takeTurn(Player *player, Player *opponent)
 
     if (makeMove(player, opponent)) // move complete, player did not loose their turn
     {
+        updateGameState(opponent, player);
         printf("\n%s's updated grid: \n\n", opponent->name);
         displayGrid(opponent);
+    }
+    else
+    {
+        getchar();
     }
     getchar();
     printf("\nPress enter to proceed!\n");
@@ -473,54 +556,99 @@ void displayAvailableMoves(Player *player, Player *opponent)
             if (i == 1)
             {
                 printf("RADAR SWEEP, reveals whether there are any opponent ships in a specified 2x2 area of their grid without showing exact locations of ships.\n");
-                printf("Input format: identifier: '1', top-left coordinate (e.g. B3, to target B3, B4, C3, C4)\n");
+                printf("Input format: identifier: '1', top-left coordinate (e.g. B3, to target B3, B4, C3, C4)\n\n");
             }
             if (i == 2)
             {
                 printf("SMOKE SCREEN, obscures a 2x2 area of your grid by hiding it from radar sweeps.\n");
-                printf("Input format: identifier: '2', top-left coordinate (e.g. B3, to target B3, B4, C3, C4)\n");
+                printf("Input format: identifier: '2', top-left coordinate (e.g. B3, to target B3, B4, C3, C4)\n\n");
             }
             if (i == 3)
             {
                 printf("ARTILLERY, an attack move that works similarly to FIRE but targets a 2x2 area.\n");
-                printf("Input format: identifier: '3', top-left coordinate (e.g. B3, to target B3, B4, C3, C4)\n");
+                printf("Input format: identifier: '3', top-left coordinate (e.g. B3, to target B3, B4, C3, C4)\n\n");
             }
             if (i == 4)
             {
                 printf("TORPEDO, powerful attack that targets an entire row or column.\n");
-                printf("Input format: identifier: '4', either row number (1->10) or column letter (A->J).\n");
+                printf("Input format: identifier: '4', either row number (1->10) or column letter (A->J).\n\n");
             }
         }
     }
     printf("\n");
 }
 
-int makeMove(Player *player, Player *opponent)
+int makeMove(Player *player, Player *opponent) // handle inputs that are not numbers
 {
+    char input[10];
     int move;
+    int result = 0;
+
     while (1)
     {
         printf("Enter the identifier for your chosen move: ");
-        scanf(" %d", &move);
+        scanf("%s", input); // Read input as a string
 
-        if (move < 0 || move > 4)
+        // Check if the input is a valid number
+        int validInput = 1; // Flag to check if input is valid
+        for (int i = 0; i < strlen(input); i++)
         {
-            printf("Invalid input! Please chose again from the list of available moves using the specified format\n\n");
+            if (!isdigit(input[i]))
+            {
+                validInput = 0; // Not a valid number
+                break;
+            }
         }
-        else
+
+        if (validInput)
         {
-            if (move == 0)
-                return fire(player, opponent);
-            if (move == 1)
-                return radarSweep(player, opponent);
-            if (move == 2)
-                return smokeScreen(player, opponent);
-            if (move == 3)
-                return artillery(player, opponent);
-            if (move == 4)
-                return torpedo(player, opponent);
+            move = atoi(input); // Convert string to integer
+
+            // Check if the move is within the valid range
+            if (move >= 0 && move < MOVES_COUNT) // Changed to < MOVES_COUNT
+            {
+                checkOneRoundMoves(player, move);
+
+                if (!checkAvailable(player, move))
+                {
+                    return 0; // Invalid move available
+                }
+
+                switch (move)
+                {
+                case 0:
+                    result = fire(player, opponent);
+                    break;
+                case 1:
+                    result = radarSweep(player, opponent);
+                    break;
+                case 2:
+                    result = smokeScreen(player, opponent);
+                    break;
+                case 3:
+                    result = artillery(player, opponent);
+                    break;
+                case 4:
+                    result = torpedo(player, opponent);
+                    break;
+                default:
+                    break;
+                }
+
+                if (result)
+                {
+                    player->moves[move].countAvailable--;
+                }
+
+                break; // Exit the loop after a valid move
+            }
         }
+
+        // If input is not a valid number or not in range
+        printf("\nInvalid input! Please choose again from the list of available moves using the specified format:\n\n");
     }
+
+    return 1; // Return success
 }
 
 int fire(Player *player, Player *opponent)
@@ -536,7 +664,7 @@ int fire(Player *player, Player *opponent)
 
     if (row < 0 || row > 9 || col < 0 || col > 9)
     {
-        printf("Invalid coordinates! You loose your turn :(\n");
+        printf("\nInvalid coordinates! You loose your turn :(\n");
         return 0;
     }
     else
@@ -545,27 +673,23 @@ int fire(Player *player, Player *opponent)
         if (i > 1)
         {
             opponent->grid[row][col] = hit;
-            printf("\nRresult: hit!\n");
+            printf("\nResult: hit!\n");
 
             for (int j = 0; j < SHIPS_COUNT; j++)
             {
-                if (opponent->ships[j].name == getShipName(i))
+                if (strcmpIgnoreNull(opponent->ships[j].name, getShipName(i)))
                 {
                     opponent->ships[j].remainingHits--;
-                    if (opponent->ships[j].remainingHits == 0)
-                    {
-                        opponent->shipsCount--;
-                        player->moves[2].countAvailable++;
-                        player->moves[3].countAvailable = 1;
-                        printf("\nOne of %s's ships, a %s, has been sunk!\n", opponent->name, getShipName(i));
-                    }
                 }
             }
         }
         else
         {
-            opponent->grid[row][col] = miss;
-            printf("\nRresult: miss!\n");
+            if (i != hit)
+            {
+                opponent->grid[row][col] = miss;
+            }
+            printf("\nResult: miss!\n");
         }
     }
     return 1;
@@ -573,76 +697,69 @@ int fire(Player *player, Player *opponent)
 
 int radarSweep(Player *player, Player *opponent)
 {
-    if (checkAvailable(player, 1))
+    int rw;
+    char cl;
+
+    printf("\nEnter top-left coordinate (e.g. B3): ");
+    scanf(" %c%d", &cl, &rw);
+
+    int row = rw - 1;
+    int col = cl - 'A';
+
+    if (validTopLeftCoordinate(row, col))
     {
-        int rw;
-        char cl;
-
-        printf("\nEnter top-left coordinate (e.g. B3): ");
-        scanf(" %c%d", &cl, &rw);
-
-        int row = rw - 1;
-        int col = cl - 'A';
-
-        if (validTopLeftCoordinate(row, col))
+        for (int i = 0; i < 2; i++)
         {
-            for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
             {
-                for (int j = 0; j < 2; j++)
+                int gridSymbol = opponent->grid[row + i][col + j];
+                if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
                 {
-                    int gridSymbol = opponent->grid[row + i][col + j];
-                    if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
+                    if (inSmokedList(opponent, row, col) == 0)
                     {
-                        if (inSmokedList(opponent, col, row) == 0)
-                        {
-                            printf("\nResult: enemy ships found!\n");
-                            player->moves[1].countAvailable--;
-                            return 1;
-                        }
+                        printf("\nResult: enemy ships found!\n");
+                        return 1;
                     }
                 }
             }
-            printf("\nResult: no enemy ships found!\n");
-            player->moves[1].countAvailable--;
-            return 1;
         }
+        printf("\nResult: no enemy ships found!\n");
+
+        return 1;
     }
     return 0;
 }
 
 int smokeScreen(Player *player, Player *opponent)
 {
-    if (checkAvailable(player, 2))
+    int rw;
+    char cl;
+
+    printf("\nEnter top-left coordinate (e.g. B3): ");
+    scanf(" %c%d", &cl, &rw);
+
+    int row = rw - 1;
+    int col = cl - 'A';
+
+    if (validTopLeftCoordinate(row, col))
     {
-        int rw;
-        char cl;
-
-        printf("\nEnter top-left coordinate (e.g. B3): ");
-        scanf(" %c%d", &cl, &rw);
-
-        int row = rw - 1;
-        int col = cl - 'A';
-
-        if (validTopLeftCoordinate(row, col))
+        for (int i = 0; i < 2; i++)
         {
-            for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
             {
-                for (int j = 0; j < 2; j++)
+                int gridSymbol = player->grid[row + i][col + j];
+                if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
                 {
-                    int gridSymbol = player->grid[row + i][col + j];
-                    if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
+                    if (inSmokedList(opponent, row, col) == 0)
                     {
-                        if (inSmokedList(opponent, col, row) == 0)
-                        {
-                            Cell *newCell = createSmokedCell(col, row);
-                            newCell->next = player->smokedCells->head;
-                            player->smokedCells->head = newCell;
-                        }
+                        Cell *newCell = createSmokedCell(col, row);
+                        newCell->next = player->smokedCells->head;
+                        player->smokedCells->head = newCell;
                     }
                 }
             }
         }
-        player->moves[2].countAvailable--;
+        getchar();
         printf("\nSMOKE SCREEN performed! Press enter to proceed \n");
         getchar();
         system("cls");
@@ -653,74 +770,51 @@ int smokeScreen(Player *player, Player *opponent)
 
 int artillery(Player *player, Player *opponent)
 {
-    if (checkAvailable(player, 3))
+    int rw;
+    char cl;
+
+    printf("\nEnter top-left coordinate (e.g. B3): ");
+    scanf(" %c%d", &cl, &rw);
+
+    int row = rw - 1;
+    int col = cl - 'A';
+
+    if (validTopLeftCoordinate(row, col))
     {
-        int rw;
-        char cl;
-
-        printf("\nEnter top-left coordinate (e.g. B3): ");
-        scanf(" %c%d", &cl, &rw);
-
-        int row = rw - 1;
-        int col = cl - 'A';
-
-        if (validTopLeftCoordinate(row, col))
+        int h = 0; // nb of hits
+        for (int i = 0; i < 2; i++)
         {
-            int r = 0;               //  nb of hits
-            int s[4] = {0, 0, 0, 0}; // to track the names of ships that have been sunk
-            for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
             {
-                for (int j = 0; j < 2; j++)
+                int gridSymbol = opponent->grid[row + i][col + j];
+                if (gridSymbol > 1)
                 {
-                    int gridSymbol = opponent->grid[row + i][col + j];
-
-                    if (gridSymbol > 1)
+                    opponent->grid[row + i][col + j] = hit;
+                    h++;
+                    for (int k = 0; k < SHIPS_COUNT; k++)
                     {
-                        opponent->grid[row][col] = hit;
-                        r++;
-                        for (int k = 0; k < SHIPS_COUNT; i++)
+                        if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
                         {
-                            if (opponent->ships[k].name == getShipName(gridSymbol))
-                            {
-                                opponent->ships[k].remainingHits--;
-                                if (opponent->ships[k].remainingHits == 0)
-                                {
-                                    opponent->shipsCount--;
-                                    player->moves[2].countAvailable++;
-                                    s[k] = gridSymbol;
-                                }
-                            }
+                            opponent->ships[k].remainingHits--;
                         }
                     }
-                    else
-                    {
-                        opponent->grid[row][col] = miss;
-                    }
                 }
-            }
-            if (r == 0)
-            {
-                printf("\nResult: miss!\n");
-                player->moves[3].countAvailable = 0;
-            }
-            else
-            {
-                printf("\nResult: hit!\n");
-                int nbSunk = 0;
-                for (int i = 0; i < SHIPS_COUNT; i++)
+                else
                 {
-                    if (s[i] == i + 2)
+                    if (gridSymbol != hit)
                     {
-                        printf("\nOne of %s's ships, a %s, has been sunk!\n", opponent->name, getShipName(i + 2));
-                        player->moves[3].countAvailable = 1;
-                        if (opponent->shipsCount == 1)
-                            player->moves[4].countAvailable = 1;
-                        nbSunk++;
+                        opponent->grid[row + i][col + j] = miss;
                     }
                 }
-                if (nbSunk == 0)
-                    player->moves[3].countAvailable = 0;
             }
+        }
+        if (h > 0)
+        {
+            printf("\nResult: hit!\n");
+        }
+        else
+        {
+            printf("\nResult: miss!\n");
         }
         return 1;
     }
@@ -729,145 +823,115 @@ int artillery(Player *player, Player *opponent)
 
 int torpedo(Player *player, Player *opponent)
 {
-    if (checkAvailable(player, 4))
+    // read target row or column
+    char input;
+    int row = -1;
+    int col = -1;
+    printf("\nEnter row (e.g. 3) or column (e.g. B): ");
+    scanf(" %c", &input);
+
+    // validate input
+    if (input >= 'A' && input <= 'J')
     {
-        // read target row or column
-        char input;
-        int row = -1;
-        int col = -1;
-        printf("\nEnter row (e.g. 3) or column (e.g. B): ");
-        scanf(" %c", &input);
+        col = input - 'A';
+    }
+    else if (input >= '1' && input <= '9' + 1)
+    {
+        row = input - '1';
+    }
+    else
+    {
+        printf("\nInvalid coordinates! You loose your turn :(\n");
+        return 0;
+    }
 
-        // validate input
-        if (input >= 'A' && input <= 'J')
-        {
-            col = input - 'A';
-        }
-        else if (input >= '1' && input <= '9' + 1)
-        {
-            row = input - '1';
-        }
-        else
-        {
-            printf("\nInvalid coordinates! You loose your turn :(\n");
-            return 0;
-        }
+    int h = 0; // nb of hits
 
-        int r = 0;               //  nb of hits
-        int s[4] = {0, 0, 0, 0}; // to track the names of ships that have been sunk, for i [0->SHIPS_COUNT]: if (s[i] = i + 2), then getShipName(i+2) has been sunk
-
-        if (col == -1) // target a row
+    if (col == -1) // target a row
+    {
+        for (int i = 0; i < GRID_SIZE; i++)
         {
-            for (int i = 0; i < GRID_SIZE; i++)
+            int gridSymbol = opponent->grid[row][i];
+            if (gridSymbol > 1)
             {
-                int gridSymbol = opponent->grid[row][i];
-                if (gridSymbol > 1)
+                opponent->grid[row][i] = hit;
+                h++;
+                for (int k = 0; k < SHIPS_COUNT; k++)
                 {
-                    opponent->grid[row][i] = hit;
-                    r++;
-                    for (int k = 0; k < SHIPS_COUNT; i++)
+                    if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
                     {
-                        if (opponent->ships[k].name == getShipName(gridSymbol))
-                        {
-                            opponent->ships[k].remainingHits--;
-                            if (opponent->ships[k].remainingHits == 0)
-                            {
-                                opponent->shipsCount--;
-                                player->moves[2].countAvailable++;
-                                s[k] = gridSymbol;
-                            }
-                        }
+                        opponent->ships[k].remainingHits--;
                     }
                 }
-                else
+            }
+            else
+            {
+                if (gridSymbol != hit)
                 {
                     opponent->grid[row][i] = miss;
                 }
             }
-            if (r == 0)
+        }
+        if (h > 0)
+        {
+            printf("\nResult: hit!\n");
+        }
+        else
+        {
+            printf("\nResult: miss!\n");
+        }
+        return 1;
+    }
+    else // target a column
+    {
+        for (int i = 0; i < GRID_SIZE; i++)
+        {
+            int gridSymbol = opponent->grid[i][col];
+            if (gridSymbol > 1)
             {
-                printf("\nResult: miss!\n");
-                player->moves[3].countAvailable = 0;
-                player->moves[4].countAvailable = 0;
+                opponent->grid[i][col] = hit;
+                printf("\n\nResult: hit!\n\n");
+                for (int k = 0; k < SHIPS_COUNT; k++)
+                {
+                    if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
+                    {
+                        opponent->ships[k].remainingHits--;
+                    }
+                }
             }
             else
             {
-                printf("\nResult: hit!\n");
-                int nbSunk = 0;
-                for (int i = 0; i < SHIPS_COUNT; i++)
-                {
-                    if (s[i] == i + 2)
-                    {
-                        printf("\nOne of %s's ships, a %s, has been sunk!\n", opponent->name, getShipName(i + 2));
-                        player->moves[3].countAvailable = 1;
-                        if (opponent->shipsCount == 1)
-                            player->moves[4].countAvailable = 1;
-                        nbSunk++;
-                    }
-                }
-                if (nbSunk == 0)
-                    player->moves[3].countAvailable = 0;
-                player->moves[4].countAvailable = 0;
-            }
-            return 1;
-        }
-        else // target a column
-        {
-            for (int i = 0; i < GRID_SIZE; i++)
-            {
-                int gridSymbol = opponent->grid[i][col];
-                if (gridSymbol > 1)
-                {
-                    opponent->grid[i][col] = hit;
-                    r++;
-                    for (int k = 0; k < SHIPS_COUNT; i++)
-                    {
-                        if (opponent->ships[k].name == getShipName(gridSymbol))
-                        {
-                            opponent->ships[k].remainingHits--;
-                            if (opponent->ships[k].remainingHits == 0)
-                            {
-                                opponent->shipsCount--;
-                                player->moves[2].countAvailable++;
-                                s[k] = gridSymbol;
-                            }
-                        }
-                    }
-                }
-                else
+                if (gridSymbol != hit)
                 {
                     opponent->grid[i][col] = miss;
                 }
             }
-            if (r == 0)
-            {
-                printf("\nResult: miss!\n");
-                player->moves[3].countAvailable = 0;
-                player->moves[4].countAvailable = 0;
-            }
-            else
-            {
-                printf("\nResult: hit!\n");
-                int nbSunk = 0;
-                for (int i = 0; i < SHIPS_COUNT; i++)
-                {
-                    if (s[i] == i + 2)
-                    {
-                        printf("\nOne of %s's ships, a %s, has been sunk!\n", opponent->name, getShipName(i + 2));
-                        player->moves[3].countAvailable = 1;
-                        if (opponent->shipsCount == 1)
-                            player->moves[4].countAvailable = 1;
-                        nbSunk++;
-                    }
-                }
-                if (nbSunk == 0)
-                    player->moves[3].countAvailable = 0;
-                player->moves[4].countAvailable = 0;
-            }
-            return 1;
+        }
+        if (h > 0)
+        {
+            printf("\nResult: hit!\n");
+        }
+        else
+        {
+            printf("\nResult: miss!\n");
+        }
+        return 1;
+    }
+}
+
+void checkOneRoundMoves(Player *player, int move)
+{
+
+    int movesToCheck[2] = {3, 4};
+
+    for (int i = 0; i < 2; i++)
+    {
+        if (move != movesToCheck[i] && player->moves[movesToCheck[i]].countAvailable == 1)
+        {
+            player->moves[movesToCheck[i]].countAvailable--;
+            // printf("You lost the move %s", player->moves[movesToCheck[i]].name);
         }
     }
-    return 0;
 }
 
 int checkAvailable(Player *player, int move)
@@ -886,7 +950,7 @@ int validTopLeftCoordinate(int row, int col)
     {
         return 1;
     }
-    printf("\nInvalid coordinates! You loose your turn :(\n");
+    printf("\nInvalid coordinates! You lost your turn :(\n");
     return 0;
 }
 
@@ -918,18 +982,43 @@ int inSmokedList(Player *player, int row, int col)
     return 0;
 }
 
-int gameOver(Player *player, Player *opponent)
+void updateGameState(Player *opponent, Player *player)
 {
-    if (opponent->shipsCount == 0)
+
+    for (int i = 0; i < SHIPS_COUNT; i++)
+    {
+        if (opponent->ships[i].remainingHits == 0)
+        {
+            opponent->ships[i].remainingHits--;
+            opponent->shipsSunk++;
+            printf("\nOne of %s's ships, a %s, has been sunk!\n", opponent->name, getShipName(i + 2));
+            updateMoves(opponent, player);
+        }
+    }
+}
+
+void updateMoves(Player *opponent, Player *player)
+{
+    for (int j = 0; j < MOVES_COUNT; j++)
+    {
+        if (player->moves[j].shipsSunkToUnlock == opponent->shipsSunk)
+        {
+            player->moves[j].countAvailable++;
+            // printf("You've unlocked a %s!\n", player->moves[j].name);
+        }
+    }
+}
+
+int gameOver(Player *opponent, Player *player)
+{
+
+    if (opponent->shipsSunk == 4)
     {
         printf("All of %s's ships have been sunk! %s wins, congrats :)", opponent->name, player->name);
         getchar();
         return 1;
     }
-    else
-    {
-        return 0;
-    }
+    return 0;
 }
 
 void freeAll(Player player)
@@ -948,4 +1037,27 @@ void freeAll(Player player)
         current = current->next;
         free(temp);
     }
+}
+
+int strcmpIgnoreNull(char *str1, char *str2)
+{
+    int i = 0, j = 0;
+
+    while (str1[i] != '\0' || str2[j] != '\0')
+    {
+        while (str1[i] == '\0')
+            i++;
+        while (str2[j] == '\0')
+            j++;
+
+        if (str1[i] != str2[j])
+        {
+            return 0;
+        }
+
+        i++;
+        j++;
+    }
+
+    return 1;
 }
