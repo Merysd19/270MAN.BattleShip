@@ -44,7 +44,7 @@ typedef struct player
     Ship *ships;
     Move *moves;
     SmokedCells *smokedCells;
-
+    // int isBot;
 } Player;
 
 // for the cells of the grid:
@@ -133,7 +133,10 @@ int main()
 
     srand(time(NULL)); // seed the random number generator with current time
 
+    // player chooses: player vs player, OR player vs bot
+
     Player player1 = createPlayer();
+    // if bot, player2 is a bot
     Player player2 = createPlayer();
 
     // read game mode:
@@ -144,9 +147,9 @@ int main()
     // read players names:
     printf("Please enter your names!\nPlayer1: ");
     scanf_s(" %99s", player1.name, 100);
+    // if !bot, ask for player2 name
     printf("Player2: ");
     scanf_s(" %99s", player2.name, 100);
-
     printf("\n");
 
     // display grids:
@@ -264,6 +267,7 @@ Player createPlayer()
     player.ships = createShips();
     player.moves = createMoves();
     player.smokedCells = createSmokedList();
+    // player.isBot = 0 or 1;
     return player;
 }
 
@@ -519,6 +523,8 @@ void clearInputBuffer() {
 
 void takeTurn(Player *player, Player *opponent)
 {
+    // if not bot:
+    // {
     printf("%s's Turn! Press enter to proceed \n", player->name);
     getchar();
     system("cls");
@@ -528,7 +534,14 @@ void takeTurn(Player *player, Player *opponent)
 
     printf("\nAvailable moves: \n\n");
     displayAvailableMoves(player, opponent);
+    // }
 
+    // else, (if bot), print: "Bot taking turn..."
+    // create and call some BOT FUNCTIONS -> do not print anything, just do it in the background
+    // for all EXISTING GAMEPLAY FUNCTIONS: 
+    // if not bot, do what we're already doing
+    // if bot: change the way we're making our choices, by CALLING BOT FUNCTIONS
+ 
     if (makeMove(player, opponent)) // move complete, player did not loose their turn
     {
         updateGameState(opponent, player);
@@ -539,10 +552,12 @@ void takeTurn(Player *player, Player *opponent)
     {
         getchar();
     }
+
     getchar();
     printf("\nPress enter to proceed!\n");
     getchar();
     system("cls");
+
 }
 
 void displayAvailableMoves(Player *player, Player *opponent)
@@ -580,9 +595,12 @@ void displayAvailableMoves(Player *player, Player *opponent)
 
 int makeMove(Player *player, Player *opponent) // handle inputs that are not numbers
 {
+
     char input[10];
     int move;
     int result = 0;
+
+    // if bot: bot function to randomly choose move
 
     while (1)
     {
@@ -653,6 +671,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
 
 int fire(Player *player, Player *opponent)
 {
+    
     int rw;
     char cl;
 
