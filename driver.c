@@ -10,6 +10,7 @@
 #define SHIPS_COUNT 4
 #define GRID_SIZE 10
 
+//stucts 
 typedef struct ship
 {
     char name[20];
@@ -36,16 +37,16 @@ typedef struct smokedCells
 } SmokedCells;
 
 // player:
-typedef struct player
-{
+typedef struct player {
     char name[100];
     int **grid;
     int shipsSunk;
     Ship *ships;
     Move *moves;
     SmokedCells *smokedCells;
-    // int isBot;
+    int isBot; // New field: 1 for bot, 0 for human
 } Player;
+
 
 // for the cells of the grid:
 enum cellStates
@@ -62,6 +63,8 @@ enum cellStates
 // FUNCTIONS:
 
 Player createPlayer();
+
+Player createBotPlayer(int difficulty);
 
 Ship *createShips();
 
@@ -137,20 +140,34 @@ int main()
 
     Player player1 = createPlayer();
     // if bot, player2 is a bot
-    Player player2 = createPlayer();
+    Player player2 ;
+
 
     // read game mode:
 
     mode = chooseDifficulty();
     printf("\n");
 
+
     // read players names:
+    //Player1
     printf("Please enter your names!\nPlayer1: ");
     scanf_s(" %99s", player1.name, 100);
-    // if !bot, ask for player2 name
+    //Player2 :Bot or Human?
+    printf("Is Player 2 a bot? (yes: 1, no: 0): ");
+    int isBot;
+    scanf("%d", &isBot);
+    
+    if (isBot) {
+    printf("Choose bot difficulty (0: Easy, 1: Medium, 2: Hard): ");
+    int botDifficulty;
+    scanf("%d", &botDifficulty);
+    player2 = createBotPlayer(botDifficulty);
+    } else {
+    player2 = createPlayer();
     printf("Player2: ");
     scanf_s(" %99s", player2.name, 100);
-    printf("\n");
+}
 
     // display grids:
     printf("%s: \n", player1.name);
@@ -270,6 +287,15 @@ Player createPlayer()
     // player.isBot = 0 or 1;
     return player;
 }
+Player createBotPlayer(int difficulty) {
+    Player bot = createPlayer();
+    strcpy(bot.name, "Bot");
+    bot.isBot = 1; // Mark as bot
+    bot.moves[0].countAvailable = -1; // for unlimited fire move
+    bot.grid = createGrid(); // Allocate bot's grid
+    return bot;
+}
+
 
 Ship *createShips()
 {
