@@ -1,4 +1,3 @@
-/*run from command prompt for optimal "clear screen" resutls*/
 
 #include <stdlib.h>
 #include <stdio.h>
