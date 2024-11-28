@@ -122,6 +122,8 @@ int torpedo(Player *player, Player *opponent); // modified for bot
 
 int checkAvailable(Player *player, int move);
 
+int botCheckAvailable(Player *player, int moveChosen);
+
 int validTopLeftCoordinate(int row, int col);
 
 Cell *createSmokedCell(int col, int row);
@@ -164,7 +166,7 @@ int main()
     printf("Please enter your names!\nPlayer1: ");
     scanf_s(" %99s", player1.name, 100);
     // Player2 :Bot or Human?
-    printf("Is Player 2 a bot? (yes: 1, no: 0): "); // player vs bot (1) or player vs player (0)
+    printf("Player vs Bot (1) OR Player vs Player (0): "); 
     int isBot;
     scanf("%d", &isBot);
 
@@ -720,12 +722,10 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
         // Ensure bot chooses a valid move
         do
         {
+            // CHOOSE THE MOVE DIFFERENTLY
+            //what move were choosing depends on the difficulty
             moveChosen = rand() % MOVES_COUNT; // Randomly choose a move
-        } while (!checkAvailable(player, moveChosen)); // Ensure the move is valid
-
-        // CHOOSE THE MOVE IN A DIFFERENT WAY
-        // VALIDATE THE MOVE IN A DIFFERENT WAY
-        // use the list of available moves for the bot to choose from
+        } while (!botCheckAvailable(player, moveChosen)); // Ensure the move is valid
 
         // Execute the chosen move for Easy Bot
         switch (moveChosen)
@@ -1300,6 +1300,16 @@ int checkAvailable(Player *player, int move)
         return 0;
     }
     return 1;
+}
+
+int botCheckAvailable(Player *player, int moveChosen)
+{
+    if (player->moves[moveChosen] == 0)
+    {
+        return 0;
+    }
+    return 1;
+
 }
 
 int validTopLeftCoordinate(int row, int col)
