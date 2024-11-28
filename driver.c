@@ -63,7 +63,7 @@ enum cellStates
 
 // FUNCTIONS:
 
-chooseMode();
+int chooseMode();
 
 Player createPlayer();
 
