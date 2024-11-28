@@ -75,7 +75,9 @@ SmokedCells *createSmokedList();
 //Added for Bot   
 Player createBotPlayer(int difficulty); //WORKS 
 
-int validRowOrCol(Player *opponent, int row, int col); //HELPER FOR TORPEDO
+int randomCoordinate(int upperBound); 
+
+//int validRowOrCol(Player *opponent, int row, int col); //HELPER FOR TORPEDO
 
 
 
@@ -90,6 +92,10 @@ void placeShips(Player *player);
 void placeShip(Player *player, int shipSize);
 
 int canPlaceShip(Player *player, int shipSize, int row, int col, char orientation);
+
+void botPlaceShip(Player* player, int shipSize);
+
+int botShipOverlap(Player *player, int shipSize, int row, int col, int isVertical);
 
 char *getShipName(int i); // i: 2->5
 
@@ -301,9 +307,13 @@ Player createBotPlayer(int difficulty) {
     strcpy(bot.name, "Bot");
     bot.isBot = 1; // Mark as bot
     bot.difficulty = difficulty; // Set bot difficulty
-
     // No need to allocate grid again since createPlayer() already does it
     return bot;
+}
+
+int randomCoordinate(int upperBound)
+{
+    return rand() % upperBound;
 }
 
 Ship *createShips()
@@ -419,6 +429,7 @@ void displayGrid(Player *player)
 
 void placeShips(Player *player)
 {
+    if (!(player->isBot)) {
     // instructions:
     printf("These are your ships and their sizes: \ncarrier, 5 cells\nbattleship, 4 cells\ndestroyer, 3 cells\nsubmarine, 2 cells\n");
     printf("\n");
@@ -427,15 +438,25 @@ void placeShips(Player *player)
     printf("Follow this exact format: \ncoordinates: ColumnRow  (CapitalLetter[A->J]Number[1->10]) (e.g. B3)\norientation: 'H' for horizontal, 'V' for vertical\n");
     printf("\n");
     printf("Your input:\n");
+    
+    }
 
-    for (int i = 5; i > 1; i--) // i = ship size
+    for (int shipSize = 5; shipSize > 1; shipSize--)
     {
-        placeShip(player, i);
+        if (!(player->isBot))
+        {
+        placeShip(player, shipSize);
+        }
+        else 
+        {
+            botPlaceShip(player, shipSize);
+        }
     }
 
     getchar();
 
-    printf("Done placing your ships! Press enter to proceed\n");
+
+    printf("Done placing %s's ships! Press enter to proceed\n", player->name);
 
     getchar();
     system("cls");
@@ -483,7 +504,6 @@ void placeShip(Player *player, int shipSize)
         placeShip(player, shipSize);
     }
 }
-// bots place ships
 
 int canPlaceShip(Player *player, int shipSize, int row, int col, char orientation)
 {
@@ -529,6 +549,64 @@ int canPlaceShip(Player *player, int shipSize, int row, int col, char orientatio
     }
     return 1;
 }
+
+void botPlaceShip(Player* player, int shipSize){
+    int row, col, isVertical;
+
+    do {
+    isVertical = rand() % 2;
+    if (isVertical)
+    {
+        row = randomCoordinate(GRID_SIZE - shipSize + 1);
+        col = randomCoordinate(GRID_SIZE);
+    }
+    else
+    {
+        row = randomCoordinate(GRID_SIZE);
+        col = randomCoordinate(GRID_SIZE - shipSize + 1);
+    }
+    } while (botShipOverlap)
+
+    if (isVertical)
+    {
+        for (int j = row; j < row + shipSize; j++)
+            {
+                player->grid[j][col] = shipSize;        
+            }
+    }
+    else
+    {
+        for (int j = col; j < col + shipSize; j++)
+            {
+                player->grid[row][j] = shipSize;        
+            }
+    }
+     
+}
+
+int botShipOverlap(Player *player, int shipSize, int row, int col, int isVertical) 
+{
+    if (isVertical)
+    {
+        for (int j = row; j < row + shipSize; j++)
+            {
+                if (player->grid[j][col] != empty)
+                {
+                    return 1;
+                }
+            }
+    } else {
+    for (int j = col; j < col + shipSize; j++)
+            {
+                if (player->grid[row][j] != empty)
+                {
+                    return 1;
+                }
+            }
+    }
+    return 0;
+}
+
 
 char *getShipName(int i)
 {
@@ -748,8 +826,8 @@ int fire(Player *player, Player *opponent) {
         if (player->difficulty == 0) {
             //select rand cell thats Unused 
             do {
-                row = rand() % GRID_SIZE; 
-                col = rand() % GRID_SIZE;
+                row = randomCoordinate(GRID_SIZE);
+                col = randomCoordinate(GRID_SIZE);
             } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss); 
         }
         // Medium Bot Logic 
@@ -806,8 +884,8 @@ int radarSweep(Player *player, Player *opponent) {
     if (player->isBot) {
         // Easy Bot Logic: Randomly select a valid top-left coordinate  
         if (player->difficulty == 0) {
-            row = rand() % (GRID_SIZE - 1); // Random top-left row for 2x2 area
-            col = rand() % (GRID_SIZE - 1); // Random top-left column for 2x2 area
+                row = randomCoordinate(GRID_SIZE - 1);
+                col = randomCoordinate(GRID_SIZE - 1);
             
         }
         // Medium Bot Logic 
@@ -862,8 +940,8 @@ int smokeScreen(Player *player, Player *opponent) {
     if (player->isBot) {
         // Easy Bot Logic: Randomly select a valid top-left coordinate
         if (player->difficulty == 0) {
-            row = rand() % (GRID_SIZE - 1); // Random top-left row for 2x2 area
-            col = rand() % (GRID_SIZE - 1); // Random top-left column for 2x2 area
+            row = randomCoordinate(GRID_SIZE - 1);
+            col = randomCoordinate(GRID_SIZE - 1);
         }
         // Medium Bot Logic (Placeholder)
         else if (player->difficulty == 1) {
@@ -919,8 +997,8 @@ int artillery(Player *player, Player *opponent) {
         // Easy Bot Logic: Randomly select a valid top-left coordinate
         if (player->difficulty == 0) {
             do{
-                row = rand() % (GRID_SIZE - 1); // Random top-left row for 2x2 area
-                col = rand() % (GRID_SIZE - 1); // Random top-left column for 2x2 area
+                row = randomCoordinate(GRID_SIZE - 1);
+                col = randomCoordinate(GRID_SIZE - 1);
             } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss); 
         } 
         // Medium Bot Logic (Placeholder)
@@ -988,9 +1066,9 @@ int torpedo(Player *player, Player *opponent) {
         if (player->difficulty == 0) {
             int isRow = rand() % 2; // Randomly choose between row or column
             if (isRow) {
-                row = rand() % GRID_SIZE; // Random row
+                row = randomCoordinate(GRID_SIZE);
             } else {
-                col = rand() % GRID_SIZE; // Random column
+                col = randomCoordinate(GRID_SIZE);
             }
         }
         // Medium Bot Logic (Placeholder)
