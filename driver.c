@@ -212,12 +212,12 @@ int main()
     printf("Placing your ships: \n");
     printf("\n");
     getchar();
-    printf("%s will start!\n", startingPlayer->name);
+    printf("%s will start! Press enter to proceed.\n", startingPlayer->name);
     printf("\n");
     getchar();
     system("cls");
     placeShips(startingPlayer);
-    printf("Now is %s's turn!\n", otherPlayer->name);
+    printf("Now is %s's turn! Press enter to proceed.\n", otherPlayer->name);
     printf("\n");
     getchar();
     system("cls");
@@ -449,14 +449,13 @@ void placeShips(Player *player)
         if (!(player->isBot))
         {
             placeShip(player, shipSize);
+            getchar();
         }
         else
         {
             botPlaceShip(player, shipSize);
         }
     }
-
-    getchar();
 
     printf("Done placing %s's ships! Press enter to proceed\n", player->name);
 
@@ -1304,7 +1303,7 @@ int checkAvailable(Player *player, int move)
 
 int botCheckAvailable(Player *player, int moveChosen)
 {
-    if (player->moves[moveChosen] == 0)
+    if (player->moves[moveChosen].countAvailable == 0)
     {
         return 0;
     }
