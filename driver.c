@@ -129,6 +129,8 @@ int artillery(Player *player, Player *opponent, int decision); // modified for b
 
 int torpedo(Player *player, Player *opponent, int decision); // modified for bot
 
+void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col);
+
 int randomCoordinate(int upperBound);
 
 int checkAvailable(Player *player, int move);
@@ -923,6 +925,7 @@ int fire(Player *player, Player *opponent, int decision)
     {
         if (decision == 1) // target meaningfully
         {
+            setCoordsMeaningfully(player, opponent, &row, &col);
         }
         else // target randomly
         {
@@ -1314,6 +1317,24 @@ int torpedo(Player *player, Player *opponent, int decision)
 //     }
 //     return 0; // Row or column is invalid
 // }
+
+void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
+{
+
+    //list of hits and a list of misses created to keep track of hits and misses coordinates and is used here (update list after each hit and miss in fire artilleray and torperdo)
+    //if hit list is empty choose randomly and make sure to check if its in the miss list
+    //isvertical isleft isdown to keep track of direction and orientation of the cell we target
+    //set default order of checking and targeting (clockwise)
+    //conditions: if undiscovered if out of bounds
+    //if undiscovered -> default (keep checking clockwise and if all neighbors are undiscovered target default)
+    //if out of bounds -> regenerate coordinates
+    //to target meaningfully check list of hits choose neighboring cell if found in list of misses avoid and check other neighbor
+    //update the isvert etc. after every chosen corrdinate
+    //update row and col
+
+    //check ships sunk (bot function) to know if we should move on to the next target
+    
+}
 
 int randomCoordinate(int upperBound)
 {
