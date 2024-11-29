@@ -111,19 +111,17 @@ int gameOver(Player *opponent, Player *player);
 int decideTarget(Player *bot);
 
 // moves + their helper functions:
-int fire(Player *player, Player *opponent); // modified for bot
+int fire(Player *player, Player *opponent, int decision); // modified for bot
 
 int radarSweep(Player *player, Player *opponent); // modified for bot
 
 int smokeScreen(Player *player, Player *opponent); // modified for bot
 
-int artillery(Player *player, Player *opponent); // modified for bot
+int artillery(Player *player, Player *opponent, int decision); // modified for bot
 
-int torpedo(Player *player, Player *opponent); // modified for bot
+int torpedo(Player *player, Player *opponent, int decision); // modified for bot
 
 int randomCoordinate(int upperBound);
-
-void targetRandom(int upperBoudn);
 
 int checkAvailable(Player *player, int move);
 
@@ -726,14 +724,14 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
             moveChosen = rand() % MOVES_COUNT; // Randomly choose a move
         } while (!botCheckAvailable(player, moveChosen)); // Ensure the move is valid
 
-        int decision = decideTarget(player);
+        int decision = decideTarget(player); // 1 if target meaningfully, 0 if target randomly
         
         // Execute the chosen move for Easy Bot
         switch (moveChosen)
         {
         case 0:                               // FIRE logic for Easy Bot
             printf("Bot performing Fire.\n"); // Print bot's move
-            result = fire(player, opponent);  // Perform the FIRE move
+            result = fire(player, opponent, decision);  // Perform the FIRE move
             break;
 
         case 1: // RADAR SWEEP (Placeholder for Easy Bot Logic)
@@ -748,12 +746,12 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
 
         case 3: // ARTILLERY (Placeholder for Easy Bot Logic)
             printf("Bot fires Artillery.\n");
-            result = artillery(player, opponent);
+            result = artillery(player, opponent, decision);
             break;
 
         case 4: // TORPEDO (Placeholder for Easy Bot Logic)
             printf("Bot fires Torpedo.\n");
-            result = torpedo(player, opponent);
+            result = torpedo(player, opponent, decision);
             break;
 
         default:
@@ -807,7 +805,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
                 switch (move)
                 {
                 case 0:
-                    result = fire(player, opponent);
+                    result = fire(player, opponent, 0);
                     break;
                 case 1:
                     result = radarSweep(player, opponent);
@@ -816,10 +814,10 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
                     result = smokeScreen(player, opponent);
                     break;
                 case 3:
-                    result = artillery(player, opponent);
+                    result = artillery(player, opponent, 0);
                     break;
                 case 4:
-                    result = torpedo(player, opponent);
+                    result = torpedo(player, opponent, 0);
                     break;
                 default:
                     break;
@@ -841,19 +839,19 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
     return 1; // Return success
 }
 
-int decideTarget(Player *bot)
+int decideTarget(Player *bot) // returns 1 if tartet meaninfully, 0 if target randomly
 {
     int percentage = 0;
     int randVal;
-    if (bot->difficulty == 0)
+    if (bot->difficulty == 0) // bot difficulty: easy
     {
         percentage = 50;
     }
-    else if (bot->difficulty == 1)
+    else if (bot->difficulty == 1) // medium
     {
         percentage = 75;
     }
-    else
+    else // hard
     {
         percentage = 100;
     }
@@ -865,33 +863,23 @@ int decideTarget(Player *bot)
     return 0;
 }
 
-int fire(Player *player, Player *opponent)
+int fire(Player *player, Player *opponent, int decision)
 {
     int row = -1, col = -1;
 
     if (player->isBot)
     {
-        // Easy Bot Logic
-        if (player->difficulty == 0)
+        if (decision == 1) // target meaningfully
         {
-            // select rand cell thats Unused
+
+        }
+        else // target randomly
+        {
             do
             {
                 row = randomCoordinate(GRID_SIZE);
                 col = randomCoordinate(GRID_SIZE);
             } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
-
-            targetRandom(   )
-        }
-        // Medium Bot Logic
-        else if (player->difficulty == 1)
-        {
-            // to be implemented
-        }
-        // Hard Bot Logic
-        else if (player->difficulty == 2)
-        {
-            // to be implemented
         }
     }
     else
@@ -1076,30 +1064,23 @@ int smokeScreen(Player *player, Player *opponent)
     return 1;
 }
 
-int artillery(Player *player, Player *opponent)
+int artillery(Player *player, Player *opponent, int decision)
 {
     int row = -1, col = -1;
 
     if (player->isBot)
     {
-        // Easy Bot Logic: Randomly select a valid top-left coordinate
-        if (player->difficulty == 0)
+        if (decision == 1) // target meaningfully
+        {
+
+        }
+        else // target randomly
         {
             do
             {
                 row = randomCoordinate(GRID_SIZE - 1);
                 col = randomCoordinate(GRID_SIZE - 1);
             } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
-        }
-        // Medium Bot Logic (Placeholder)
-        else if (player->difficulty == 1)
-        {
-            // implement
-        }
-        // Hard Bot Logic (Placeholder)
-        else if (player->difficulty == 2)
-        {
-            // implement
         }
     }
     else
@@ -1160,15 +1141,18 @@ int artillery(Player *player, Player *opponent)
     return 1;
 }
 
-int torpedo(Player *player, Player *opponent)
+int torpedo(Player *player, Player *opponent, int decision)
 {
     int row = -1;
     int col = -1;
 
     if (player->isBot)
     {
-        // Easy Bot Logic: Randomly choose a valid row or column
-        if (player->difficulty == 0)
+        if (decision == 1) // target meaningfully
+        {
+
+        }
+        else // target randomly
         {
             int isRow = rand() % 2; // Randomly choose between row or column
             if (isRow)
@@ -1180,21 +1164,6 @@ int torpedo(Player *player, Player *opponent)
                 col = randomCoordinate(GRID_SIZE);
             }
         }
-        // Medium Bot Logic (Placeholder)
-        else if (player->difficulty == 1)
-        {
-            // implement
-        }
-        // Hard Bot Logic (Placeholder)
-        else if (player->difficulty == 2)
-        {
-            // implement
-        }
-
-        printf("%s performs torpedo at %s %c\n",
-               player->name,
-               (row != -1) ? "row" : "column",
-               (row != -1) ? row + '1' : col + 'A'); // Debugging output for bot
     }
     else
     {
@@ -1307,16 +1276,6 @@ int torpedo(Player *player, Player *opponent)
 int randomCoordinate(int upperBound)
 {
     return rand() % upperBound;
-}
-
-void targetRandom(int upperBoudn)
-{
-    do
-            {
-                row = randomCoordinate(GRID_SIZE);
-                col = randomCoordinate(GRID_SIZE);
-            } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
-
 }
 
 void checkOneRoundMoves(Player *player, int move)
