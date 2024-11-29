@@ -36,6 +36,11 @@ typedef struct smokedCells
     Cell *head;
 } SmokedCells;
 
+typedef struct placedShips
+{
+    Cell *head;
+} PlacedShips;
+
 // player:
 typedef struct player
 {
@@ -48,6 +53,7 @@ typedef struct player
     // BOT
     int isBot;
     int difficulty;
+    PlacedShips *botsShipsCoord;
 } Player;
 
 // for the cells of the grid:
@@ -73,6 +79,8 @@ Ship *createShips();
 Move *createMoves();
 
 SmokedCells *createSmokedList();
+
+PlacedShips *createBotsShipsCoord();
 
 // Added for Bot
 Player createBotPlayer(int difficulty); // WORKS
@@ -131,6 +139,8 @@ int validTopLeftCoordinate(int row, int col);
 
 Cell *createSmokedCell(int col, int row);
 
+Cell *createShipCoord(int row, int col);
+
 int inSmokedList(Player *opponent, int row, int col);
 
 void updateGameState(Player *opponent, Player *player);
@@ -169,7 +179,7 @@ int main()
     printf("Please enter your names!\nPlayer1: ");
     scanf_s(" %99s", player1.name, 100);
     // Player2 :Bot or Human?
-    printf("Player vs Bot (1) OR Player vs Player (0): "); 
+    printf("Player vs Bot (1) OR Player vs Player (0): ");
     int isBot;
     scanf("%d", &isBot);
 
@@ -314,6 +324,7 @@ Player createBotPlayer(int difficulty)
     bot.isBot = 1;               // Mark as bot
     bot.difficulty = difficulty; // Set bot difficulty
     // No need to allocate grid again since createPlayer() already does it
+    bot.botsShipsCoord = createBotsShipsCoord();
     return bot;
 }
 
@@ -364,6 +375,18 @@ SmokedCells *createSmokedList()
     }
     smokedCells->head = NULL;
     return smokedCells;
+}
+
+PlacedShips *createBotsShipsCoord()
+{
+    PlacedShips *botsShipsCoord = (PlacedShips *)malloc(sizeof(PlacedShips));
+    if (botsShipsCoord == NULL)
+    {
+        printf("Failed to allocate needed memory\n");
+        exit(1);
+    }
+    botsShipsCoord->head = NULL;
+    return botsShipsCoord;
 }
 
 int **createGrid()
@@ -573,6 +596,9 @@ void botPlaceShip(Player *player, int shipSize)
         for (int j = row; j < row + shipSize; j++)
         {
             player->grid[j][col] = shipSize;
+            Cell *shipCoord = createShipCoord(j, col);
+            shipCoord->next = player->botsShipsCoord->head;
+            player->botsShipsCoord->head = shipCoord;
         }
     }
     else
@@ -580,6 +606,9 @@ void botPlaceShip(Player *player, int shipSize)
         for (int j = col; j < col + shipSize; j++)
         {
             player->grid[row][j] = shipSize;
+            Cell *shipCoord = createShipCoord(row, j);
+            shipCoord->next = player->botsShipsCoord->head;
+            player->botsShipsCoord->head = shipCoord;
         }
     }
 }
@@ -716,22 +745,45 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
         int moveChosen = -1; // Move chosen by the bot
         int result = 0;
 
-        // Ensure bot chooses a valid move
-        do
+        if (botCheckAvailable(player, 4)) // choose torpedo whenever it's available
         {
-            // CHOOSE THE MOVE DIFFERENTLY
-            //what move were choosing depends on the difficulty
-            moveChosen = rand() % MOVES_COUNT; // Randomly choose a move
-        } while (!botCheckAvailable(player, moveChosen)); // Ensure the move is valid
+            moveChosen = 4;
+        }
+        else if (botCheckAvailable(player, 3)) // else, choose artillery whenever available
+        {
+            moveChosen = 3;
+        }
+        else if (botCheckAvailable(player, 2)) // else, choose smoke smoke screen whenever available
+        {
+            moveChosen = 2;
+        }
+
+        else // randomly choose between fire and radar sweep: 1 radar sweep for each 3 fires
+        {
+            do
+            {
+                int r = rand() % 4;
+                if (r = 3)
+                {
+                    moveChosen = 1; // choose radar sweep
+                }
+                else
+                {
+                    moveChosen = 0; // choose fire
+                }
+            } while (!botCheckAvailable(player, moveChosen)); // ensure the move is valid, i.e. we did not exhaust all 3 radar sweeps available
+        }
+
+        // UPDATE!!!: choose winning move when such a move exists, ex: **** (next move: fire)
 
         int decision = decideTarget(player); // 1 if target meaningfully, 0 if target randomly
-        
+
         // Execute the chosen move for Easy Bot
         switch (moveChosen)
         {
-        case 0:                               // FIRE logic for Easy Bot
-            printf("Bot performing Fire.\n"); // Print bot's move
-            result = fire(player, opponent, decision);  // Perform the FIRE move
+        case 0:                                        // FIRE logic for Easy Bot
+            printf("Bot performing Fire.\n");          // Print bot's move
+            result = fire(player, opponent, decision); // Perform the FIRE move
             break;
 
         case 1: // RADAR SWEEP (Placeholder for Easy Bot Logic)
@@ -856,7 +908,7 @@ int decideTarget(Player *bot) // returns 1 if tartet meaninfully, 0 if target ra
         percentage = 100;
     }
     randVal = rand() % 101;
-    if (randVal<= percentage)
+    if (randVal <= percentage)
     {
         return 1;
     }
@@ -871,7 +923,6 @@ int fire(Player *player, Player *opponent, int decision)
     {
         if (decision == 1) // target meaningfully
         {
-
         }
         else // target randomly
         {
@@ -934,6 +985,9 @@ int radarSweep(Player *player, Player *opponent)
 
     if (player->isBot)
     {
+        // WHERE TO RADAR SWEEEP ON OPPS GRID? > somewhere unexplored, or we're curious about
+        // MAKE USE OF RADAR SWEEP RESULTS
+
         // Easy Bot Logic: Randomly select a valid top-left coordinate
         if (player->difficulty == 0)
         {
@@ -1002,22 +1056,12 @@ int smokeScreen(Player *player, Player *opponent)
 
     if (player->isBot)
     {
-        // Easy Bot Logic: Randomly select a valid top-left coordinate
-        if (player->difficulty == 0)
-        {
-            row = randomCoordinate(GRID_SIZE - 1);
-            col = randomCoordinate(GRID_SIZE - 1);
-        }
-        // Medium Bot Logic (Placeholder)
-        else if (player->difficulty == 1)
-        {
-            // implement
-        }
-        // Hard Bot Logic (Placeholder)
-        else if (player->difficulty == 2)
-        {
-            // implement
-        }
+        // choosing a valid top left coordinate
+        row = randomCoordinate(GRID_SIZE - 1);
+        col = randomCoordinate(GRID_SIZE - 1);
+
+        // NEXT: smoke where i have ships,
+        // USE: fire arithmetic logic + list of bots ship coord
     }
     else
     {
@@ -1072,7 +1116,6 @@ int artillery(Player *player, Player *opponent, int decision)
     {
         if (decision == 1) // target meaningfully
         {
-
         }
         else // target randomly
         {
@@ -1150,7 +1193,6 @@ int torpedo(Player *player, Player *opponent, int decision)
     {
         if (decision == 1) // target meaningfully
         {
-
         }
         else // target randomly
         {
@@ -1310,7 +1352,6 @@ int botCheckAvailable(Player *player, int moveChosen)
         return 0;
     }
     return 1;
-
 }
 
 int validTopLeftCoordinate(int row, int col)
@@ -1334,6 +1375,20 @@ Cell *createSmokedCell(int col, int row)
     }
     newCell->col = col;
     newCell->row = row;
+    newCell->next = NULL;
+    return newCell;
+}
+
+Cell *createShipCoord(int row, int col)
+{
+    Cell *newCell = (Cell *)malloc(sizeof(Cell));
+    if (newCell == NULL)
+    {
+        printf("Failed to allocate needed memory\n");
+        exit(1);
+    }
+    newCell->row = row;
+    newCell->col = col;
     newCell->next = NULL;
     return newCell;
 }
