@@ -893,7 +893,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
     return 1; // Return success
 }
 
-int decideTarget(Player *bot) // returns 1 if tartet meaninfully, 0 if target randomly
+int decideTarget(Player *bot) // returns 1 if target meaninfully, 0 if target randomly
 {
     int percentage = 0;
     int randVal;
@@ -1320,6 +1320,60 @@ int torpedo(Player *player, Player *opponent, int decision)
 
 void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
 {
+    static int lastRow = -1, lastCol = -1; //to  Keep track of the last targeted cell 
+    static int hitsInProgress = 0; // Track when focused on hitting a specific ship 
+    static int direction = 0; // 0: down, 1: up, 2: left, 3: right
+
+    if (hitsInProgress == 0) {
+        // Search for hits to focus on
+        for (int r = 0; r < GRID_SIZE; r++) {
+            for (int c = 0; c < GRID_SIZE; c++) {
+                if (opponent->grid[r][c] == hit) { //hit found 
+                    lastRow = r;
+                    lastCol = c;
+                    hitsInProgress = 1; //strat focusing 
+                    direction = 0; 
+                    break;
+                }
+            }
+            if (hitsInProgress)
+                break;
+        }
+    }
+
+    if (hitsInProgress) { // now target meaningfully based on that last hit
+        // targeting hit neighbors clockwise
+        for (int i = 0; i < 4; i++) {
+            int r = lastRow, c = lastCol;
+            switch (direction) {
+                case 0: r++; break; // down
+                case 1: r--; break; // up
+                case 2: c--; break; // left
+                case 3: c++; break; // right
+            }
+
+            if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE &&
+                opponent->grid[r][c] != hit && opponent->grid[r][c] != miss) {   // Checking  bounds and whether the cell is undiscovered
+                *row = r;
+                *col = c;
+                lastRow = r;
+                lastCol = c;
+                return; // valid target found
+            }
+
+            direction = (direction + 1) % 4; //if the current direction does not lead to a valid cell-->rotates to the next direction
+        }
+
+        // If no valid neighbor reset focus
+        hitsInProgress = 0;
+    } 
+        //// No hits to focus on so now target randomly
+        do {
+            *row = randomCoordinate(GRID_SIZE);
+            *col = randomCoordinate(GRID_SIZE);
+        } while (opponent->grid[*row][*col] == hit || opponent->grid[*row][*col] == miss);
+    
+
 
     //list of hits and a list of misses created to keep track of hits and misses coordinates and is used here (update list after each hit and miss in fire artilleray and torperdo)
     //if hit list is empty choose randomly and make sure to check if its in the miss list
