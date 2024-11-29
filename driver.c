@@ -1,3 +1,4 @@
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -76,8 +77,6 @@ SmokedCells *createSmokedList();
 // Added for Bot
 Player createBotPlayer(int difficulty); // WORKS
 
-int randomCoordinate(int upperBound);
-
 // int validRowOrCol(Player *opponent, int row, int col); //HELPER FOR TORPEDO
 
 // grid:
@@ -109,6 +108,8 @@ int makeMove(Player *player, Player *opponent); // modified for bot
 
 int gameOver(Player *opponent, Player *player);
 
+int decideTarget(Player *bot);
+
 // moves + their helper functions:
 int fire(Player *player, Player *opponent); // modified for bot
 
@@ -119,6 +120,10 @@ int smokeScreen(Player *player, Player *opponent); // modified for bot
 int artillery(Player *player, Player *opponent); // modified for bot
 
 int torpedo(Player *player, Player *opponent); // modified for bot
+
+int randomCoordinate(int upperBound);
+
+void targetRandom(int upperBoudn);
 
 int checkAvailable(Player *player, int move);
 
@@ -312,11 +317,6 @@ Player createBotPlayer(int difficulty)
     bot.difficulty = difficulty; // Set bot difficulty
     // No need to allocate grid again since createPlayer() already does it
     return bot;
-}
-
-int randomCoordinate(int upperBound)
-{
-    return rand() % upperBound;
 }
 
 Ship *createShips()
@@ -726,6 +726,8 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
             moveChosen = rand() % MOVES_COUNT; // Randomly choose a move
         } while (!botCheckAvailable(player, moveChosen)); // Ensure the move is valid
 
+        int decision = decideTarget(player);
+        
         // Execute the chosen move for Easy Bot
         switch (moveChosen)
         {
@@ -839,6 +841,30 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
     return 1; // Return success
 }
 
+int decideTarget(Player *bot)
+{
+    int percentage = 0;
+    int randVal;
+    if (bot->difficulty == 0)
+    {
+        percentage = 50;
+    }
+    else if (bot->difficulty == 1)
+    {
+        percentage = 75;
+    }
+    else
+    {
+        percentage = 100;
+    }
+    randVal = rand() % 101;
+    if (randVal<= percentage)
+    {
+        return 1;
+    }
+    return 0;
+}
+
 int fire(Player *player, Player *opponent)
 {
     int row = -1, col = -1;
@@ -854,6 +880,8 @@ int fire(Player *player, Player *opponent)
                 row = randomCoordinate(GRID_SIZE);
                 col = randomCoordinate(GRID_SIZE);
             } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
+
+            targetRandom(   )
         }
         // Medium Bot Logic
         else if (player->difficulty == 1)
@@ -1275,6 +1303,21 @@ int torpedo(Player *player, Player *opponent)
 //     }
 //     return 0; // Row or column is invalid
 // }
+
+int randomCoordinate(int upperBound)
+{
+    return rand() % upperBound;
+}
+
+void targetRandom(int upperBoudn)
+{
+    do
+            {
+                row = randomCoordinate(GRID_SIZE);
+                col = randomCoordinate(GRID_SIZE);
+            } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
+
+}
 
 void checkOneRoundMoves(Player *player, int move)
 {
