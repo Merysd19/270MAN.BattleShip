@@ -40,6 +40,11 @@ typedef struct placedShips
     Cell *head;
 } PlacedShips;
 
+typedef struct hitCells
+{
+    Cell *head;
+} HitCells;
+
 // player:
 typedef struct player
 {
@@ -53,6 +58,7 @@ typedef struct player
     int isBot;
     int difficulty;
     PlacedShips *botsShipsCoord;
+    HitCells *botHitList;
 } Player;
 
 // for the cells of the grid:
@@ -80,6 +86,8 @@ Move *createMoves();
 SmokedCells *createSmokedList();
 
 PlacedShips *createBotsShipsCoord();
+
+HitCells *createBotHitList();
 
 // Added for Bot
 Player createBotPlayer(int difficulty); // WORKS
@@ -152,7 +160,9 @@ void checkOneRoundMoves(Player *player, int move);
 
 int strcmpIgnoreNull(char *str1, char *str2);
 
-void freeAll(Player player);
+void freeAll(Player *player);
+
+void freeList(Player *player);
 
 // tracking difficulty level
 int mode;
@@ -254,8 +264,8 @@ int main()
     }
 
     // free memory allocated for the players:
-    freeAll(player1);
-    freeAll(player2);
+    freeAll(&player1);
+    freeAll(&player2);
 
     return 0;
 }
@@ -326,6 +336,7 @@ Player createBotPlayer(int difficulty)
     bot.difficulty = difficulty; // Set bot difficulty
     // No need to allocate grid again since createPlayer() already does it
     bot.botsShipsCoord = createBotsShipsCoord();
+    bot.botHitList = createBotHitList();
     return bot;
 }
 
@@ -388,6 +399,18 @@ PlacedShips *createBotsShipsCoord()
     }
     botsShipsCoord->head = NULL;
     return botsShipsCoord;
+}
+
+HitCells *createBotHitList()
+{
+    HitCells *bothHitList = (HitCells *)malloc(sizeof(HitCells));
+    if (bothHitList == NULL)
+    {
+        printf("Failed to allocate needed memory\n");
+        exit(1);
+    }
+    bothHitList->head = NULL;
+    return bothHitList;
 }
 
 int **createGrid()
@@ -746,6 +769,17 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
         int moveChosen = -1; // Move chosen by the bot
         int result = 0;
 
+        //RADAR SWEEP: KEEP TRACK OF SHIPS FOUND 
+            //CREATE A LIST OG SHIPS WE WANT TO HIT SO BEFORE CHOOSING COORD FOR THE MOVE WERE MAKING 
+            //CHECK LIST IF EMPTY PERFORM INITIAL START ELSE CHOOSE COORDS FROM LIST
+            //extra
+            //CHOOSE BETWEEN ARTILLERY AND FIRE EX(A1 A2 B1 B2 PERFORM ARTILLERY)
+        //SMOKE SCREEN: SMOKE WHERE THE BOT HAS ITS SHIPS (LIST CREATED JUST CHOOSE VALID TOP LEFT COORD)
+        //extra
+        //ARTILLARY TORPEDO FIRE: CHOOSE THE ONE NEEDED FOR A WINNING MOVE
+        //MODIFY SETCOORDSMEANINGFULLY TO FIT TORPEDO AND ARTILLERY
+        //COME BACK TO REMOVEHIT: CHECK IF HEAD OR CURRENT (and if we need the function or not)
+
         if (botCheckAvailable(player, 4)) // choose torpedo whenever it's available
         {
             moveChosen = 4;
@@ -759,12 +793,12 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
             moveChosen = 2;
         }
 
-        else // randomly choose between fire and radar sweep: 1 radar sweep for each 3 fires
+        else 
         {
             do
             {
-                int r = rand() % 4;
-                if (r = 3)
+                int r = rand() % 101;
+                if (r >= 80)
                 {
                     moveChosen = 1; // choose radar sweep
                 }
@@ -775,7 +809,6 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
             } while (!botCheckAvailable(player, moveChosen)); // ensure the move is valid, i.e. we did not exhaust all 3 radar sweeps available
         }
 
-        // UPDATE!!!: choose winning move when such a move exists, ex: **** (next move: fire)
 
         int decision = decideTarget(player); // 1 if target meaningfully, 0 if target randomly
 
@@ -959,6 +992,10 @@ int fire(Player *player, Player *opponent, int decision)
     if (cell > 1)
     {
         opponent->grid[row][col] = hit;
+        if (player->isBot)
+        {
+            addHit(&(player->botHitList->head), row, col);
+        }
         printf("\nResult: hit!\n");
 
         // Decrement the ship's remaining hits
@@ -1118,6 +1155,9 @@ int artillery(Player *player, Player *opponent, int decision)
     {
         if (decision == 1) // target meaningfully
         {
+            do{
+                setCoordsMeaningfully(player, opponent, &row, &col);
+            }while(!(row < 9 && row >= 0 && col < 9 && col >= 0));
         }
         else // target randomly
         {
@@ -1158,6 +1198,10 @@ int artillery(Player *player, Player *opponent, int decision)
             {
                 opponent->grid[row + i][col + j] = hit;
                 h++;
+                if (player->isBot)
+                {
+                    addHit(&(player->botHitList->head), row + i, col + j);
+                }
                 for (int k = 0; k < SHIPS_COUNT; k++)
                 {
                     if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
@@ -1194,7 +1238,18 @@ int torpedo(Player *player, Player *opponent, int decision)
     if (player->isBot)
     {
         if (decision == 1) // target meaningfully
-        {
+        {//BRUTEFORCE
+            int isRow = rand() % 2; // Randomly choose between row or column
+            if (isRow)
+            {
+                setCoordsMeaningfully(player,opponent, &row, &col);
+                col = -1;
+            }
+            else
+            {
+                setCoordsMeaningfully(player,opponent, &row, &col);
+                row = -1;
+            }
         }
         else // target randomly
         {
@@ -1245,6 +1300,10 @@ int torpedo(Player *player, Player *opponent, int decision)
             {
                 opponent->grid[row][i] = hit;
                 h++;
+                if (player->isBot)
+                {
+                    addHit(&(player->botHitList->head), row, i);
+                }
                 for (int k = 0; k < SHIPS_COUNT; k++)
                 {
                     if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
@@ -1271,6 +1330,10 @@ int torpedo(Player *player, Player *opponent, int decision)
             {
                 opponent->grid[i][col] = hit;
                 h++;
+                if (player->isBot)
+                {
+                    addHit(&(player->botHitList->head), i, col);
+                }
                 for (int k = 0; k < SHIPS_COUNT; k++)
                 {
                     if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
@@ -1299,34 +1362,13 @@ int torpedo(Player *player, Player *opponent, int decision)
     }
     return 1;
 }
-// helper funct for torpedo
-// int validRowOrCol(Player *opponent, int row, int col) {
-//     if (row != -1) { // Check row validity
-//         for (int i = 0; i < GRID_SIZE; i++) {
-//             if (opponent->grid[row][i] != hit && opponent->grid[row][i] != miss) {
-//                 return 1; // Row is valid
-//             }
-//         }
-//     } else if (col != -1) { // Check column validity
-//         for (int i = 0; i < GRID_SIZE; i++) {
-//             if (opponent->grid[i][col] != hit && opponent->grid[i][col] != miss) {
-//                 return 1; // Column is valid
-//             }
-//         }
-//     }
-//     return 0; // Row or column is invalid
-// }
 
-
-//------------------------------------------------------setCoordsMeaningfully with List----------------------------------------------------
-typedef struct Hit {
-    int row;
-    int col;
-    struct Hit *next; 
-} HitList;
-int existsInHitList(HitList *head, int row, int col) {
-    while (head != NULL) {
-        if (head->row == row && head->col == col) {
+int existsInHitList(Cell *head, int row, int col)
+{
+    while (head != NULL)
+    {
+        if (head->row == row && head->col == col)
+        {
             return 1; // Hit already exists
         }
         head = head->next;
@@ -1334,12 +1376,15 @@ int existsInHitList(HitList *head, int row, int col) {
     return 0; // Hit not found
 }
 // add a new hit to the list
-void addHit(HitList **head, int row, int col) {
-    if (existsInHitList(*head, row, col)) {
+void addHit(Cell **head, int row, int col)
+{
+    if (existsInHitList(*head, row, col))
+    {
         return; // Skip if the hit already exists
     }
-    HitList *newHit = (HitList *)malloc(sizeof(HitList));
-    if (!newHit) {
+    Cell *newHit = (Cell *)malloc(sizeof(Cell));
+    if (!newHit)
+    {
         printf("Error: Memory allocation failed.\n");
         exit(1);
     }
@@ -1350,13 +1395,19 @@ void addHit(HitList **head, int row, int col) {
 }
 
 // remove a  hit from the list
-void removeHit(HitList **head, int row, int col) {
-    HitList *current = *head, *prev = NULL;
-    while (current != NULL) {
-        if (current->row == row && current->col == col) {
-            if (prev == NULL) { // Remove the head
+void removeHit(Cell **head, int row, int col)
+{
+    Cell *current = *head, *prev = NULL;
+    while (current != NULL)
+    {
+        if (current->row == row && current->col == col)
+        {
+            if (prev == NULL)
+            { // Remove the head
                 *head = current->next;
-            } else {
+            }
+            else
+            {
                 prev->next = current->next;
             }
             free(current);
@@ -1367,49 +1418,54 @@ void removeHit(HitList **head, int row, int col) {
     }
 }
 
-// check if list empty 
-int isHitListEmpty(HitList *head) {
+// check if list empty
+int isHitListEmpty(HitCells *head)
+{
     return head == NULL;
 }
-void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col) {
-    static HitList *hitList = NULL; // list to track hits
-    static int direction = 0;      // 0: down, 1: up, 2: left, 3: right
 
-    // if hit list is empty search for new hits
-    if (isHitListEmpty(hitList)) {
-        for (int r = 0; r < GRID_SIZE; r++) {
-            for (int c = 0; c < GRID_SIZE; c++) {
-                if (opponent->grid[r][c] == hit) {
-                    addHit(&hitList, r, c);
-                }
-            }
-        }
-    }
+//MODIFY TO FIT TORPEDO AND ARTILLERY
+void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
+{
+    //LIMITATION: target hit that is guiding us corresponds to a ship that has already been sunk
+    Cell *current = player->botHitList->head;
+    static int direction = 0; // 0: down, 1: up, 2: left, 3: right
 
     // focus on first hit in the list
-    while (hitList != NULL) {
-        int baseRow = hitList->row;
-        int baseCol = hitList->col;
+    while (current != NULL)
+    { // hit node not list
+        int baseRow = current->row;
+        int baseCol = current->col;
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++)
+        {
             int targetRow = baseRow, targetCol = baseCol;
 
             // hit's neighbors
-            switch (direction) {
-                case 0: targetRow++; break; // Down
-                case 1: targetRow--; break; // Up
-                case 2: targetCol--; break; // Left
-                case 3: targetCol++; break; // Right
+            switch (direction)
+            {
+            case 0:
+                targetRow++;
+                break; // Down
+            case 1:
+                targetRow--;
+                break; // Up
+            case 2:
+                targetCol--;
+                break; // Left
+            case 3:
+                targetCol++;
+                break; // Right
             }
 
             // // Checking  bounds and whether the cell is undiscovered
             if (targetRow >= 0 && targetRow < GRID_SIZE &&
                 targetCol >= 0 && targetCol < GRID_SIZE &&
                 opponent->grid[targetRow][targetCol] != hit &&
-                opponent->grid[targetRow][targetCol] != miss) {
+                opponent->grid[targetRow][targetCol] != miss)
+            {
                 *row = targetRow;
                 *col = targetCol;
-                direction = (direction + 1) % 4; // Rotate direction
                 return;
             }
 
@@ -1418,42 +1474,30 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
         }
 
         // No valid neighbors; remove the current hit and move to the next
-        removeHit(&hitList, baseRow, baseCol);
+        removeHit(&player->botHitList->head, current->row, current->col);
+        //COME BACK TO IT: CHECK IF HEAD OR CURRENT (and if we need the function or not)
     }
 
     // If no hits to focus on target randomly
-    do {
+    do
+    {
         *row = randomCoordinate(GRID_SIZE);
         *col = randomCoordinate(GRID_SIZE);
     } while (opponent->grid[*row][*col] == hit || opponent->grid[*row][*col] == miss);
 }
 
-// free list at  the end of  the game 
-void freeHitList(HitList *head) {
-    HitList *current = head;
-    while (current != NULL) {
-        HitList *temp = current;
-        current = current->next;
-        free(temp);
-    }
-}
+// list of hits and a list of misses created to keep track of hits and misses coordinates and is used here (update list after each hit and miss in fire artilleray and torperdo)
+// if hit list is empty choose randomly and make sure to check if its in the miss list
+// isvertical isleft isdown to keep track of direction and orientation of the cell we target
+// set default order of checking and targeting (clockwise)
+// conditions: if undiscovered if out of bounds
+// if undiscovered -> default (keep checking clockwise and if all neighbors are undiscovered target default)
+// if out of bounds -> regenerate coordinates
+// to target meaningfully check list of hits choose neighboring cell if found in list of misses avoid and check other neighbor
+// update the isvert etc. after every chosen corrdinate
+// update row and col
 
-
-
-    //list of hits and a list of misses created to keep track of hits and misses coordinates and is used here (update list after each hit and miss in fire artilleray and torperdo)
-    //if hit list is empty choose randomly and make sure to check if its in the miss list
-    //isvertical isleft isdown to keep track of direction and orientation of the cell we target
-    //set default order of checking and targeting (clockwise)
-    //conditions: if undiscovered if out of bounds
-    //if undiscovered -> default (keep checking clockwise and if all neighbors are undiscovered target default)
-    //if out of bounds -> regenerate coordinates
-    //to target meaningfully check list of hits choose neighboring cell if found in list of misses avoid and check other neighbor
-    //update the isvert etc. after every chosen corrdinate
-    //update row and col
-
-    //check ships sunk (bot function) to know if we should move on to the next target
-    
-
+// check ships sunk (bot function) to know if we should move on to the next target
 
 int randomCoordinate(int upperBound)
 {
@@ -1585,21 +1629,21 @@ int gameOver(Player *opponent, Player *player)
     return 0;
 }
 
-void freeAll(Player player)
+void freeAll(Player *player)
 {
     for (int i = 0; i < 10; i++)
     {
-        free(player.grid[i]);
+        free(player->grid[i]);
     }
-    free(player.grid);
-    free(player.ships);
-    free(player.moves);
-    Cell *current = player.smokedCells->head;
-    while (current != NULL)
+    free(player->grid);
+    free(player->ships);
+    free(player->moves);
+    freeList(player);
+
+    if (player->isBot)
     {
-        Cell *temp = current;
-        current = current->next;
-        free(temp);
+        freeList(player);
+        freeList(player);
     }
 }
 
@@ -1624,4 +1668,15 @@ int strcmpIgnoreNull(char *str1, char *str2)
     }
 
     return 1;
+}
+
+void freeList(Player *player)
+{
+    Cell *current = player->smokedCells->head;
+    while (current != NULL)
+    {
+        Cell *temp = current;
+        current = current->next;
+        free(temp);
+    }
 }
