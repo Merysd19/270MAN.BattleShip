@@ -1449,7 +1449,7 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
         
         if(cellState==1){ //if cell is hit check if it belongs to a sunk ship 
             for (int i=0; i<SHIPS_COUNT ; i++ ){            
-                Ship *ship = &opponent->ships[i];
+                Ship *ship = &opponent->ships[cellState - 2];
                 if(ship->remainingHits==0 ){
                    // remove hit from list if its ship is sunk
                    Cell *next = current->next;
