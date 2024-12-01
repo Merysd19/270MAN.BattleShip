@@ -136,6 +136,12 @@ int artillery(Player *player, Player *opponent, int decision); // modified for b
 
 int torpedo(Player *player, Player *opponent, int decision); // modified for bot
 
+int existsInHitList(Cell *head, int row, int col);
+
+void addHit(Cell **head, int row, int col);
+
+void removeHit(Cell **head, int row, int col);
+
 void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col);
 
 int randomCoordinate(int upperBound);
@@ -769,16 +775,16 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
         int moveChosen = -1; // Move chosen by the bot
         int result = 0;
 
-        //RADAR SWEEP: KEEP TRACK OF SHIPS FOUND 
-            //CREATE A LIST OG SHIPS WE WANT TO HIT SO BEFORE CHOOSING COORD FOR THE MOVE WERE MAKING 
-            //CHECK LIST IF EMPTY PERFORM INITIAL START ELSE CHOOSE COORDS FROM LIST
-            //extra
-            //CHOOSE BETWEEN ARTILLERY AND FIRE EX(A1 A2 B1 B2 PERFORM ARTILLERY)
-        //SMOKE SCREEN: SMOKE WHERE THE BOT HAS ITS SHIPS (LIST CREATED JUST CHOOSE VALID TOP LEFT COORD)
-        //extra
-        //ARTILLARY TORPEDO FIRE: CHOOSE THE ONE NEEDED FOR A WINNING MOVE
-        //MODIFY SETCOORDSMEANINGFULLY TO FIT TORPEDO AND ARTILLERY
-        //COME BACK TO REMOVEHIT: CHECK IF HEAD OR CURRENT (and if we need the function or not)
+        // RADAR SWEEP: KEEP TRACK OF SHIPS FOUND
+        // CREATE A LIST OG SHIPS WE WANT TO HIT SO BEFORE CHOOSING COORD FOR THE MOVE WERE MAKING
+        // CHECK LIST IF EMPTY PERFORM INITIAL START ELSE CHOOSE COORDS FROM LIST
+        // extra
+        // CHOOSE BETWEEN ARTILLERY AND FIRE EX(A1 A2 B1 B2 PERFORM ARTILLERY)
+        // SMOKE SCREEN: SMOKE WHERE THE BOT HAS ITS SHIPS (LIST CREATED JUST CHOOSE VALID TOP LEFT COORD)
+        // extra
+        // ARTILLARY TORPEDO FIRE: CHOOSE THE ONE NEEDED FOR A WINNING MOVE
+        // MODIFY SETCOORDSMEANINGFULLY TO FIT TORPEDO AND ARTILLERY
+        // COME BACK TO REMOVEHIT: CHECK IF HEAD OR CURRENT (and if we need the function or not)
 
         if (botCheckAvailable(player, 4)) // choose torpedo whenever it's available
         {
@@ -793,7 +799,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
             moveChosen = 2;
         }
 
-        else 
+        else
         {
             do
             {
@@ -808,7 +814,6 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
                 }
             } while (!botCheckAvailable(player, moveChosen)); // ensure the move is valid, i.e. we did not exhaust all 3 radar sweeps available
         }
-
 
         int decision = decideTarget(player); // 1 if target meaningfully, 0 if target randomly
 
@@ -1155,9 +1160,10 @@ int artillery(Player *player, Player *opponent, int decision)
     {
         if (decision == 1) // target meaningfully
         {
-            do{
+            do
+            {
                 setCoordsMeaningfully(player, opponent, &row, &col);
-            }while(!(row < 9 && row >= 0 && col < 9 && col >= 0));
+            } while (!(row < 9 && row >= 0 && col < 9 && col >= 0));
         }
         else // target randomly
         {
@@ -1237,17 +1243,17 @@ int torpedo(Player *player, Player *opponent, int decision)
 
     if (player->isBot)
     {
-        if (decision == 1) // target meaningfully
-        {//BRUTEFORCE
+        if (decision == 1)          // target meaningfully
+        {                           // BRUTEFORCE
             int isRow = rand() % 2; // Randomly choose between row or column
             if (isRow)
             {
-                setCoordsMeaningfully(player,opponent, &row, &col);
+                setCoordsMeaningfully(player, opponent, &row, &col);
                 col = -1;
             }
             else
             {
-                setCoordsMeaningfully(player,opponent, &row, &col);
+                setCoordsMeaningfully(player, opponent, &row, &col);
                 row = -1;
             }
         }
@@ -1419,15 +1425,15 @@ void removeHit(Cell **head, int row, int col)
 }
 
 // check if list empty
-int isHitListEmpty(HitCells *head)
-{
-    return head == NULL;
-}
+// int isHitListEmpty(HitCells *head)
+//{
+// return head == NULL;
+//}
 
-//MODIFY TO FIT TORPEDO AND ARTILLERY
+// MODIFY TO FIT TORPEDO AND ARTILLERY
 void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
 {
-    //LIMITATION: target hit that is guiding us corresponds to a ship that has already been sunk
+    // LIMITATION: target hit that is guiding us corresponds to a ship that has already been sunk
     Cell *current = player->botHitList->head;
     static int direction = 0; // 0: down, 1: up, 2: left, 3: right
 
@@ -1475,7 +1481,7 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
 
         // No valid neighbors; remove the current hit and move to the next
         removeHit(&player->botHitList->head, current->row, current->col);
-        //COME BACK TO IT: CHECK IF HEAD OR CURRENT (and if we need the function or not)
+        // COME BACK TO IT: CHECK IF HEAD OR CURRENT (and if we need the function or not)
     }
 
     // If no hits to focus on target randomly
