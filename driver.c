@@ -153,7 +153,7 @@ int strcmpIgnoreNull(char *str1, char *str2);
 
 void freeAll(Player *player);
 
-void freeList(Player *player);
+void freeList(CellList *list);
 
 // tracking difficulty level
 int mode;
@@ -422,6 +422,7 @@ void displayGrid(Player *player)
         printf("%2d", i + 1);
         for (int j = 0; j < GRID_SIZE; j++)
         {
+            //printf("  %d", player->grid[i][j]); // for testing
             char c;
             switch (player->grid[i][j])
             {
@@ -1024,20 +1025,23 @@ int radarSweep(Player *player, Player *opponent)
     {
         for (int j = 0; j < 2; j++)
         {
-            int gridSymbol = opponent->grid[row + i][col + j];
-            addCell(&(player->radaredList->head), row, col);
-            if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
+            if (row + i < GRID_SIZE && col + j < GRID_SIZE)
             {
-                if (inList(opponent->smokedCells->head, row + i, col + j) == 0)
+                int gridSymbol = opponent->grid[row + i][col + j];
+                addCell(&(player->radaredList->head), row, col);
+                if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
                 {
-                    if (!(player->isBot))
+                    if (inList(opponent->smokedCells->head, row + i, col + j) == 0)
                     {
-                        printf("\nResult: enemy ships found!\n");
-                        return 1;
-                    }
-                    else
-                    {
-                        addCell(&(player->foundShips->head), row, col);
+                        if (!(player->isBot))
+                        {
+                            printf("\nResult: enemy ships found!\n");
+                            return 1;
+                        }
+                        else
+                        {
+                            addCell(&(player->foundShips->head), row, col);
+                        }
                     }
                 }
             }
@@ -1095,6 +1099,7 @@ int smokeScreen(Player *player, Player *opponent)
     }
     if (!(player->isBot))
     {
+        getchar();
         printf("\nSMOKE SCREEN performed! Press enter to proceed \n");
         getchar();
         system("cls");
@@ -1360,7 +1365,7 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
     {
         // LIMITATION: target hit that is guiding us corresponds to a ship that has already been sunk
         Cell *current = player->botHitList->head;
-        static int direction = 0; // 0: down, 1: up, 2: left, 3: right
+        int direction = 0; // 0: down, 1: up, 2: left, 3: right
 
         // focus on first hit in the list
         while (current != NULL)
@@ -1368,13 +1373,15 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
             int baseRow = current->row;
             int baseCol = current->col;
 
-            /* MAKE SURE THE HIT THAT IS GUIDING US DOESNOT CORRESPOND TO A SHIP THAT HAS BEEN SUNK
-            we "wish" cellState also kept track of what ship was in this cell before we hit it
-            
+            // LIMITATION!!!
+
+            // MAKE SURE THE HIT THAT IS GUIDING US DOESNOT CORRESPOND TO A SHIP THAT HAS BEEN SUNK
+           // we "wish" cellState also kept track of what ship was in this cell before we hit it, first possible sol:
+            /*
             // Check if the hit corresponds to a sunk ship
             int cellState = opponent->grid[baseRow][baseCol];
 
-            if (cellState == 1)
+            if (cellState > 1)
             { // if cell is hit check if it belongs to a sunk ship
                 for (int i = 0; i < SHIPS_COUNT; i++)
                 {
@@ -1383,14 +1390,23 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
                     {
                         // remove hit from list if its ship is sunk
                         Cell *next = current->next;
-                        removeCell(&player->botHitList->head, current->row, current->col);
+                        removeCell(&(player->botHitList->head), current->row, current->col);
                         current = next;
                         continue; // Skip processing this node
                     }
                 }
-            }
-            */
+            }*/
 
+           // socond possible sol:
+           //if (opponent->grid[baseRow][baseCol] == sunk)
+            //{
+            // removeCell(&player->botHitList->head, current->row, current->col);
+            //continue;
+            // }
+            // NEED TO:
+            // add to the cellStates enum: sunk = 6,
+            // whenever we sink a ship, go back to the coordinates where it was placed, change the grid from hit to sunk
+            
             for (int i = 0; i < 4; i++)
             {
                 int targetRow = baseRow, targetCol = baseCol;
@@ -1431,6 +1447,7 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
             Cell *next = current->next;
             removeCell(&player->botHitList->head, current->row, current->col);
             current = next; // ensures updating current to the next nocde after removal
+
         }
 
         // If no hits to focus on target randomly
@@ -1576,7 +1593,7 @@ void updateGameState(Player *opponent, Player *player)
     {
         if (opponent->ships[i].remainingHits == 0)
         {
-            opponent->ships[i].remainingHits--;
+            opponent->ships[i].remainingHits--; // when we sink the next ship, the current sunk ship has remaining hits = -1, so we do not print about it :)
             opponent->shipsSunk++;
             printf("\nOne of %s's ships, a %s, has been sunk!\n", opponent->name, getShipName(i + 2));
             updateMoves(opponent, player);
@@ -1607,24 +1624,6 @@ int gameOver(Player *opponent, Player *player)
     return 0;
 }
 
-void freeAll(Player *player)
-{
-    for (int i = 0; i < 10; i++)
-    {
-        free(player->grid[i]);
-    }
-    free(player->grid);
-    free(player->ships);
-    free(player->moves);
-    freeList(player);
-
-    if (player->isBot)
-    {
-        freeList(player);
-        freeList(player);
-    }
-}
-
 int strcmpIgnoreNull(char *str1, char *str2)
 {
     int i = 0, j = 0;
@@ -1648,13 +1647,34 @@ int strcmpIgnoreNull(char *str1, char *str2)
     return 1;
 }
 
-void freeList(Player *player)
+void freeAll(Player *player)
 {
-    Cell *current = player->smokedCells->head;
-    while (current != NULL)
+    for (int i = 0; i < 10; i++)
     {
+        free(player->grid[i]);
+    }
+    free(player->grid);
+    free(player->ships);
+    free(player->moves);
+    freeList(player->smokedCells);
+
+    if (player->isBot)
+    {
+        freeList(player->botHitList);
+        freeList(player->botsShipsCoord);
+        freeList(player->radaredList);
+        freeList(player->foundShips);
+    }
+}
+
+void freeList(CellList *list)
+{
+    if (list == NULL) return;
+    Cell *current = list->head;
+    while (current != NULL) {
         Cell *temp = current;
         current = current->next;
         free(temp);
     }
+    free(list);
 }
