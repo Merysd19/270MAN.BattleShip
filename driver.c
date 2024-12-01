@@ -1443,17 +1443,24 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
         int baseRow = current->row;
         int baseCol = current->col;
 
-         // Check if the hit corresponds to a sunk ship
-        int cellState = opponent->grid[baseRow][baseCol]; 
-        if (cellState > 1 && opponent->ships[cellState - 2].remainingHits == 0)  (cellState>1 -> belongs to a ship)
-        {
-            // remove hit from list if its ship is sunk
-            Cell *next = current->next;
-            removeHit(&player->botHitList->head, current->row, current->col);
-            current = next;
-            continue; // Skip processing this node
-        }
 
+        // Check if the hit corresponds to a sunk ship
+        int cellState = opponent->grid[baseRow][baseCol];
+        
+        if(cellState==1){ //if cell is hit check if it belongs to a sunk ship 
+            for (int i=0; i<SHIPS_COUNT ; i++ ){            
+                Ship *ship = &opponent->ships[i];
+                if(ship->remainingHits==0 ){
+                   // remove hit from list if its ship is sunk
+                   Cell *next = current->next;
+                   removeHit(&player->botHitList->head, current->row, current->col);
+                   current = next;
+                   continue; // Skip processing this node
+                }
+    
+            }
+        }
+        
         for (int i = 0; i < 4; i++)
         {
             int targetRow = baseRow, targetCol = baseCol;
@@ -1491,8 +1498,9 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
         }
 
         // No valid neighbors; remove the current hit and move to the next
+        Cell *next = current->next;
         removeHit(&player->botHitList->head, current->row, current->col);
-        // COME BACK TO IT: CHECK IF HEAD OR CURRENT (and if we need the function or not)
+        current = next; // ensures updating current to the next nocde after removal 
     }
 
     // If no hits to focus on target randomly
@@ -1502,19 +1510,6 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
         *col = randomCoordinate(GRID_SIZE);
     } while (opponent->grid[*row][*col] == hit || opponent->grid[*row][*col] == miss);
 }
-
-// list of hits and a list of misses created to keep track of hits and misses coordinates and is used here (update list after each hit and miss in fire artilleray and torperdo)
-// if hit list is empty choose randomly and make sure to check if its in the miss list
-// isvertical isleft isdown to keep track of direction and orientation of the cell we target
-// set default order of checking and targeting (clockwise)
-// conditions: if undiscovered if out of bounds
-// if undiscovered -> default (keep checking clockwise and if all neighbors are undiscovered target default)
-// if out of bounds -> regenerate coordinates
-// to target meaningfully check list of hits choose neighboring cell if found in list of misses avoid and check other neighbor
-// update the isvert etc. after every chosen corrdinate
-// update row and col
-
-// check ships sunk (bot function) to know if we should move on to the next target
 
 int randomCoordinate(int upperBound)
 {
