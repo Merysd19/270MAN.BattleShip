@@ -1443,6 +1443,17 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
         int baseRow = current->row;
         int baseCol = current->col;
 
+         // Check if the hit corresponds to a sunk ship
+        int cellState = opponent->grid[baseRow][baseCol]; 
+        if (cellState > 1 && opponent->ships[cellState - 2].remainingHits == 0)  (cellState>1 -> belongs to a ship)
+        {
+            // remove hit from list if its ship is sunk
+            Cell *next = current->next;
+            removeHit(&player->botHitList->head, current->row, current->col);
+            current = next;
+            continue; // Skip processing this node
+        }
+
         for (int i = 0; i < 4; i++)
         {
             int targetRow = baseRow, targetCol = baseCol;
