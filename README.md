@@ -14,7 +14,7 @@ Battleship Game is a C project where players engage in a thrilling naval battle.
 - Smoke Screen: Hides a 2x2 grid area from radar sweeps.
 - Artillery: Targets a 2x2 grid area for attack.
 - Torpedo: Targets an entire row or column.
-### 3.Difficulty Levels:
+### 3.Tracking Difficulty Levels:
 - Easy: Tracks hits and misses.
 - Hard: Tracks only hits.
 ### 4.Bot Integration:
