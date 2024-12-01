@@ -77,7 +77,7 @@ Ship *createShips();
 
 Move *createMoves();
 
-Cell *createCell(row, col);
+Cell *createCell(int row, int col);
 
 CellList *createList();
 
@@ -589,9 +589,7 @@ void botPlaceShip(Player *player, int shipSize)
         for (int j = row; j < row + shipSize; j++)
         {
             player->grid[j][col] = shipSize;
-            Cell *shipCoord = createShipCoord(j, col);
-            shipCoord->next = player->botsShipsCoord->head;
-            player->botsShipsCoord->head = shipCoord;
+            addCell(&(player->botsShipsCoord->head), j, col);
         }
     }
     else
@@ -599,9 +597,7 @@ void botPlaceShip(Player *player, int shipSize)
         for (int j = col; j < col + shipSize; j++)
         {
             player->grid[row][j] = shipSize;
-            Cell *shipCoord = createShipCoord(row, j);
-            shipCoord->next = player->botsShipsCoord->head;
-            player->botsShipsCoord->head = shipCoord;
+            addCell(&(player->botsShipsCoord->head), row, j);
         }
     }
 }
@@ -957,7 +953,7 @@ int fire(Player *player, Player *opponent, int decision)
         opponent->grid[row][col] = hit;
         if (player->isBot)
         {
-            addHit(&(player->botHitList->head), row, col);
+            addCell(&(player->botHitList->head), row, col);
         }
         printf("\nResult: hit!\n");
 
@@ -1003,7 +999,6 @@ int radarSweep(Player *player, Player *opponent)
                 col = randomCoordinate(GRID_SIZE - 1);
             } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
         }
-        addCell(player->foundShips->head, row, col);
     }
     else
     {
@@ -1030,11 +1025,11 @@ int radarSweep(Player *player, Player *opponent)
         for (int j = 0; j < 2; j++)
         {
             int gridSymbol = opponent->grid[row + i][col + j];
+            addCell(&(player->radaredList->head), row, col);
             if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
             {
-                if (inSmokedList(opponent, row + i, col + j) == 0)
+                if (inList(opponent->smokedCells->head, row + i, col + j) == 0)
                 {
-
                     if (!(player->isBot))
                     {
                         printf("\nResult: enemy ships found!\n");
@@ -1042,7 +1037,7 @@ int radarSweep(Player *player, Player *opponent)
                     }
                     else
                     {
-                        addShip(&(player->foundShips->head), row, col);
+                        addCell(&(player->foundShips->head), row, col);
                     }
                 }
             }
@@ -1091,11 +1086,9 @@ int smokeScreen(Player *player, Player *opponent)
             int gridSymbol = player->grid[row + i][col + j];
             if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
             {
-                if (inSmokedList(player, row + i, col + j) == 0)
+                if (inList(player->smokedCells->head, row + i, col + j) == 0)
                 {
-                    Cell *newCell = createSmokedCell(col + j, row + i);
-                    newCell->next = player->smokedCells->head;
-                    player->smokedCells->head = newCell;
+                    addCell(&(player->smokedCells->head), col + j, row + i);
                 }
             }
         }
@@ -1163,7 +1156,7 @@ int artillery(Player *player, Player *opponent, int decision)
                 h++;
                 if (player->isBot)
                 {
-                    addHit(&(player->botHitList->head), row + i, col + j);
+                    addCell(&(player->botHitList->head), row + i, col + j);
                 }
                 for (int k = 0; k < SHIPS_COUNT; k++)
                 {
@@ -1264,7 +1257,7 @@ int torpedo(Player *player, Player *opponent, int decision)
                 h++;
                 if (player->isBot)
                 {
-                    addHit(&(player->botHitList->head), row, i);
+                    addCell(&(player->botHitList->head), row, i);
                 }
                 for (int k = 0; k < SHIPS_COUNT; k++)
                 {
@@ -1294,7 +1287,7 @@ int torpedo(Player *player, Player *opponent, int decision)
                 h++;
                 if (player->isBot)
                 {
-                    addHit(&(player->botHitList->head), i, col);
+                    addCell(&(player->botHitList->head), i, col);
                 }
                 for (int k = 0; k < SHIPS_COUNT; k++)
                 {
