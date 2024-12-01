@@ -422,7 +422,7 @@ void displayGrid(Player *player)
         printf("%2d", i + 1);
         for (int j = 0; j < GRID_SIZE; j++)
         {
-            //printf("  %d", player->grid[i][j]); // for testing
+            // printf("  %d", player->grid[i][j]); // for testing
             char c;
             switch (player->grid[i][j])
             {
@@ -1015,7 +1015,7 @@ int radarSweep(Player *player, Player *opponent)
 
         if (!validTopLeftCoordinate(row, col))
         {
-            printf("\nInvalid coordinates! You lose your turn :(\n");
+            // printf("\nInvalid coordinates! You lose your turn :(\n");
             return 0;
         }
     }
@@ -1025,10 +1025,14 @@ int radarSweep(Player *player, Player *opponent)
     {
         for (int j = 0; j < 2; j++)
         {
-            if (row + i < GRID_SIZE && col + j < GRID_SIZE)
+            if (row + i >= 0 && row + i < GRID_SIZE &&
+                col + j >= 0 && col + j < GRID_SIZE)
             {
                 int gridSymbol = opponent->grid[row + i][col + j];
-                addCell(&(player->radaredList->head), row, col);
+                if (!inList(player->radaredList->head, row + i, col + j))
+                {
+                    addCell(&(player->radaredList->head), row + i, col + j);
+                }
                 if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
                 {
                     if (inList(opponent->smokedCells->head, row + i, col + j) == 0)
@@ -1040,7 +1044,7 @@ int radarSweep(Player *player, Player *opponent)
                         }
                         else
                         {
-                            addCell(&(player->foundShips->head), row, col);
+                            addCell(&(player->foundShips->head), row + i, col + j);
                         }
                     }
                 }
@@ -1077,7 +1081,7 @@ int smokeScreen(Player *player, Player *opponent)
 
         if (!validTopLeftCoordinate(row, col))
         {
-            printf("\nInvalid coordinates! You lose your turn :(\n");
+            // printf("\nInvalid coordinates! You lose your turn :(\n");
             return 0;
         }
     }
@@ -1143,7 +1147,7 @@ int artillery(Player *player, Player *opponent, int decision)
 
         if (!validTopLeftCoordinate(row, col))
         {
-            printf("\nInvalid coordinates! You lose your turn :(\n");
+            // printf("\nInvalid coordinates! You lose your turn :(\n");
             return 0;
         }
     }
@@ -1376,7 +1380,7 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
             // LIMITATION!!!
 
             // MAKE SURE THE HIT THAT IS GUIDING US DOESNOT CORRESPOND TO A SHIP THAT HAS BEEN SUNK
-           // we "wish" cellState also kept track of what ship was in this cell before we hit it, first possible sol:
+            // we "wish" cellState also kept track of what ship was in this cell before we hit it, first possible sol:
             /*
             // Check if the hit corresponds to a sunk ship
             int cellState = opponent->grid[baseRow][baseCol];
@@ -1397,16 +1401,16 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
                 }
             }*/
 
-           // socond possible sol:
-           //if (opponent->grid[baseRow][baseCol] == sunk)
+            // socond possible sol:
+            // if (opponent->grid[baseRow][baseCol] == sunk)
             //{
             // removeCell(&player->botHitList->head, current->row, current->col);
-            //continue;
+            // continue;
             // }
             // NEED TO:
             // add to the cellStates enum: sunk = 6,
             // whenever we sink a ship, go back to the coordinates where it was placed, change the grid from hit to sunk
-            
+
             for (int i = 0; i < 4; i++)
             {
                 int targetRow = baseRow, targetCol = baseCol;
@@ -1447,7 +1451,6 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
             Cell *next = current->next;
             removeCell(&player->botHitList->head, current->row, current->col);
             current = next; // ensures updating current to the next nocde after removal
-
         }
 
         // If no hits to focus on target randomly
@@ -1669,9 +1672,11 @@ void freeAll(Player *player)
 
 void freeList(CellList *list)
 {
-    if (list == NULL) return;
+    if (list == NULL)
+        return;
     Cell *current = list->head;
-    while (current != NULL) {
+    while (current != NULL)
+    {
         Cell *temp = current;
         current = current->next;
         free(temp);
