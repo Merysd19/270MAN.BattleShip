@@ -137,7 +137,7 @@ int checkAvailable(Player *player, int move);
 
 int botCheckAvailable(Player *player, int moveChosen);
 
-void chooseTopLeftMeaningfully(Cell *head, int *row, int *col);
+void chooseTopLeftMeaningfully(Cell *head1, Cell *head2, int *row, int *col);
 
 void chooseTopLeftMeaningfullyHelper(Cell *current, int *row, int *col);
 
@@ -987,7 +987,7 @@ int radarSweep(Player *player, Player *opponent)
         {
             do
             {
-                chooseTopLeftMeaningfully(player->radaredList->head, &row, &col);
+                chooseTopLeftMeaningfully(player->botHitList->head, player->radaredList->head, &row, &col);
             } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
         }
         // randomly select a valid top-left coordinate
@@ -1057,7 +1057,7 @@ int smokeScreen(Player *player, Player *opponent)
 
     if (player->isBot)
     {
-        chooseTopLeftMeaningfully(player->smokedCells->head, &row, &col);
+        chooseTopLeftMeaningfully(player->botsShipsCoord->head, player->smokedCells->head, &row, &col);
     }
     else
     {
@@ -1368,6 +1368,9 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
             int baseRow = current->row;
             int baseCol = current->col;
 
+            /* MAKE SURE THE HIT THAT IS GUIDING US DOESNOT CORRESPOND TO A SHIP THAT HAS BEEN SUNK
+            we "wish" cellState also kept track of what ship was in this cell before we hit it
+            
             // Check if the hit corresponds to a sunk ship
             int cellState = opponent->grid[baseRow][baseCol];
 
@@ -1386,6 +1389,7 @@ void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
                     }
                 }
             }
+            */
 
             for (int i = 0; i < 4; i++)
             {
@@ -1485,14 +1489,15 @@ int botCheckAvailable(Player *player, int moveChosen)
     return 1;
 }
 
-void chooseTopLeftMeaningfully(Cell *head, int *row, int *col)
+void chooseTopLeftMeaningfully(Cell *head1, Cell *head2, int *row, int *col)
 {
-    Cell *current = head;
-    if (current != NULL)
+    Cell *current = head1;
+    while (current != NULL)
     {
-        if (!inList(head, current->row, current->col))
+        if (!inList(head2, current->row, current->col))
         {
             chooseTopLeftMeaningfullyHelper(current, row, col);
+            return;
         }
         else
         {
