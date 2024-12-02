@@ -118,6 +118,10 @@ int gameOver(Player *opponent, Player *player);
 
 int decideTarget(Player *bot);
 
+void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col);
+
+void searchForHits(Player *player, Player *opponent, int* row, int* col);
+
 // moves + their helper functions:
 int fire(Player *player, Player *opponent, int decision); // modified for bot
 
@@ -128,8 +132,6 @@ int smokeScreen(Player *player, Player *opponent); // modified for bot
 int artillery(Player *player, Player *opponent, int decision); // modified for bot
 
 int torpedo(Player *player, Player *opponent, int decision); // modified for bot
-
-void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col);
 
 int randomCoordinate(int upperBound);
 
@@ -179,7 +181,7 @@ int main()
     // read players names:
     // Player1
     printf("Please enter your names!\nPlayer1: ");
-    scanf_s(" %99s", player1.name, 100);
+    scanf(" %99s", player1.name, 100);
     // Player2 :Bot or Human?
     printf("Player vs Bot (1) OR Player vs Player (0): ");
     int isBot;
@@ -196,7 +198,7 @@ int main()
     {
         player2 = createPlayer();
         printf("Player2: ");
-        scanf_s(" %99s", player2.name, 100);
+        scanf(" %99s", player2.name, 100);
     }
 
     // display grids:
@@ -318,7 +320,7 @@ Player createPlayer()
     player.difficulty = -1; // Not applicable for human player
     return player;
 }
-/*-----------------------------------------------------------------BOT----------------------------------------------------------------*/
+
 Player createBotPlayer(int difficulty)
 {
     Player bot = createPlayer();
@@ -422,21 +424,20 @@ void displayGrid(Player *player)
         printf("%2d", i + 1);
         for (int j = 0; j < GRID_SIZE; j++)
         {
-            // printf("  %d", player->grid[i][j]); // for testing
             char c;
             switch (player->grid[i][j])
             {
             case miss:
-                if (mode == 0) // easy mode, show miss
+                if (mode == 0) // easy mode, show miss*/
                     c = 'o';
-                else // hard mode, don't show miss
+               else // hard mode, don't show miss*/
                     c = '~';
-                break;
+               break;
             case hit:
                 c = '*';
-                break;
-            default: // undiscovered: cell empty or has a ship (ships not displayed on grid)
-                c = '~';
+              break;
+            //default: // undiscovered: cell empty or has a ship (ships not displayed on grid)*/
+               c = '~';
                 break;
             }
             printf(" %c", c);
@@ -734,12 +735,6 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
     {
         int moveChosen = -1; // Move chosen by the bot
         int result = 0;
-        // extra
-        // CHOOSE BETWEEN ARTILLERY AND FIRE EX(A1 A2 B1 B2 PERFORM ARTILLERY)
-        // extra
-        // ARTILLARY TORPEDO FIRE: CHOOSE THE ONE NEEDED FOR A WINNING MOVE
-        // MODIFY SETCOORDSMEANINGFULLY TO FIT TORPEDO AND ARTILLERY
-        // COME BACK TO REMOVEHIT: CHECK IF HEAD OR CURRENT (and if we need the function or not)
 
         if (botCheckAvailable(player, 4)) // choose torpedo whenever it's available
         {
@@ -769,7 +764,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
                 }
             } while (!botCheckAvailable(player, moveChosen)); // ensure the move is valid, i.e. we did not exhaust all 3 radar sweeps available
         }
-
+        
         int decision = decideTarget(player); // 1 if target meaningfully, 0 if target randomly
 
         // Execute the chosen move for Easy Bot
@@ -909,6 +904,103 @@ int decideTarget(Player *bot) // returns 1 if target meaninfully, 0 if target ra
     return 0;
 }
 
+void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
+{
+        Cell *current = player->botHitList->head;
+        Cell *radarCell = player->radaredList->head;
+
+        if (radarCell != NULL) {
+            *row = radarCell->row;
+            *col = radarCell->col;
+            player->radaredList->head = radarCell->next;
+            return;
+        }
+
+        if (current == NULL)
+        {
+            searchForHits(player, opponent, row, col);
+        }
+        else
+        {
+
+            int direction = 0;
+
+            int baseRow = current->row;
+            int baseCol = current->col;
+
+            for (int i = 0; i < 4; i++)
+            {
+                int targetRow = baseRow, targetCol = baseCol;
+
+                // hit's neighbors
+                switch(direction)
+                {
+                case 0:
+                    targetRow++;
+                    break; // Down
+                case 1:
+                    targetRow--;
+                    break; // Up
+                case 2:
+                    targetCol--;
+                    break; // Left
+                case 3:
+                    targetCol++;
+                    break; // Right
+                }
+
+                // // Checking  bounds and whether the cell is undiscovered
+                if (targetRow >= 0 && targetRow < GRID_SIZE &&
+                    targetCol >= 0 && targetCol < GRID_SIZE &&
+                    opponent->grid[targetRow][targetCol] != hit &&
+                    opponent->grid[targetRow][targetCol] != miss)
+                {
+                    *row = targetRow;
+                    *col = targetCol;
+                    current = current->next;
+                    return;
+                }
+
+                // Rotate direction clockwise: if the current direction does not lead to a valid cell-->rotates to the next direction
+                direction = (direction + 1) % 4;
+            }
+
+            searchForHits(player, opponent, row, col);
+            current = current->next;
+        }
+}
+
+//when the hitList is empty, it chooses coordinates with higher chance of having a ship
+void searchForHits(Player *player, Player *opponent, int* row, int* col) {
+    int coordsToCheck[9][2] = {
+            {0, 0}, {0, 4}, {0, 9},
+            {4, 0}, {4, 4}, {4, 9},
+            {9, 0}, {9, 4}, {9, 9}
+        };
+
+    for (int i = 0; i < 9; i++) {
+        int targetCol = coordsToCheck[i][0];
+        int targetRow = coordsToCheck[i][1];
+
+        if (targetRow >= 0 && targetRow < GRID_SIZE &&
+            targetCol >= 0 && targetCol < GRID_SIZE &&
+            opponent->grid[targetRow][targetCol] != hit &&
+            opponent->grid[targetRow][targetCol] != miss) {
+
+            *row = targetRow;
+            *col = targetCol;
+            return;
+        }
+    }
+
+    //if all were visited, choose random coordinates
+    do {
+        *row = randomCoordinate(GRID_SIZE);
+        *col = randomCoordinate(GRID_SIZE);
+    } while (opponent->grid[*row][*col] == hit || opponent->grid[*row][*col] == miss);
+
+}
+
 int fire(Player *player, Player *opponent, int decision)
 {
     int row = -1, col = -1;
@@ -917,6 +1009,7 @@ int fire(Player *player, Player *opponent, int decision)
     {
         if (decision == 1) // target meaningfully
         {
+            /*setCoordsMeaningfully(player, opponent, &row, &col);*/
             setCoordsMeaningfully(player, opponent, &row, &col);
         }
         else // target randomly
@@ -949,6 +1042,7 @@ int fire(Player *player, Player *opponent, int decision)
 
     // Fire at the chosen coordinates
     int cell = opponent->grid[row][col];
+    
     if (cell > 1)
     {
         opponent->grid[row][col] = hit;
@@ -983,9 +1077,10 @@ int radarSweep(Player *player, Player *opponent)
     int row = -1, col = -1;
 
     if (player->isBot)
-    {
+    {   
         if (player->botHitList->head != NULL)
-        {
+        {   
+
             do
             {
                 chooseTopLeftMeaningfully(player->botHitList->head, player->radaredList->head, &row, &col);
@@ -998,6 +1093,7 @@ int radarSweep(Player *player, Player *opponent)
             {
                 row = randomCoordinate(GRID_SIZE - 1);
                 col = randomCoordinate(GRID_SIZE - 1);
+                
             } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
         }
     }
@@ -1015,7 +1111,6 @@ int radarSweep(Player *player, Player *opponent)
 
         if (!validTopLeftCoordinate(row, col))
         {
-            // printf("\nInvalid coordinates! You lose your turn :(\n");
             return 0;
         }
     }
@@ -1151,6 +1246,8 @@ int artillery(Player *player, Player *opponent, int decision)
             return 0;
         }
     }
+        
+    
 
     // Artillery Logic
     int h = 0; // Number of hits
@@ -1359,114 +1456,6 @@ void removeCell(Cell **head, int row, int col)
         }
         prev = current;
         current = current->next;
-    }
-}
-
-void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
-{
-
-    if (player->foundShips->head == NULL)
-    {
-        // LIMITATION: target hit that is guiding us corresponds to a ship that has already been sunk
-        Cell *current = player->botHitList->head;
-        int direction = 0; // 0: down, 1: up, 2: left, 3: right
-
-        // focus on first hit in the list
-        while (current != NULL)
-        { // hit node not list
-            int baseRow = current->row;
-            int baseCol = current->col;
-
-            // LIMITATION!!!
-
-            // MAKE SURE THE HIT THAT IS GUIDING US DOESNOT CORRESPOND TO A SHIP THAT HAS BEEN SUNK
-            // we "wish" cellState also kept track of what ship was in this cell before we hit it, first possible sol:
-            /*
-            // Check if the hit corresponds to a sunk ship
-            int cellState = opponent->grid[baseRow][baseCol];
-
-            if (cellState > 1)
-            { // if cell is hit check if it belongs to a sunk ship
-                for (int i = 0; i < SHIPS_COUNT; i++)
-                {
-                    Ship *ship = &opponent->ships[cellState - 2];
-                    if (ship->remainingHits == 0)
-                    {
-                        // remove hit from list if its ship is sunk
-                        Cell *next = current->next;
-                        removeCell(&(player->botHitList->head), current->row, current->col);
-                        current = next;
-                        continue; // Skip processing this node
-                    }
-                }
-            }*/
-
-            // socond possible sol:
-            // if (opponent->grid[baseRow][baseCol] == sunk)
-            //{
-            // removeCell(&player->botHitList->head, current->row, current->col);
-            // continue;
-            // }
-            // NEED TO:
-            // add to the cellStates enum: sunk = 6,
-            // whenever we sink a ship, go back to the coordinates where it was placed, change the grid from hit to sunk
-
-            for (int i = 0; i < 4; i++)
-            {
-                int targetRow = baseRow, targetCol = baseCol;
-
-                // hit's neighbors
-                switch (direction)
-                {
-                case 0:
-                    targetRow++;
-                    break; // Down
-                case 1:
-                    targetRow--;
-                    break; // Up
-                case 2:
-                    targetCol--;
-                    break; // Left
-                case 3:
-                    targetCol++;
-                    break; // Right
-                }
-
-                // // Checking  bounds and whether the cell is undiscovered
-                if (targetRow >= 0 && targetRow < GRID_SIZE &&
-                    targetCol >= 0 && targetCol < GRID_SIZE &&
-                    opponent->grid[targetRow][targetCol] != hit &&
-                    opponent->grid[targetRow][targetCol] != miss)
-                {
-                    *row = targetRow;
-                    *col = targetCol;
-                    return;
-                }
-
-                // Rotate direction clockwise: if the current direction does not lead to a valid cell-->rotates to the next direction
-                direction = (direction + 1) % 4;
-            }
-
-            // No valid neighbors; remove the current hit and move to the next
-            Cell *next = current->next;
-            removeCell(&player->botHitList->head, current->row, current->col);
-            current = next; // ensures updating current to the next nocde after removal
-        }
-
-        // If no hits to focus on target randomly
-        do
-        {
-            *row = randomCoordinate(GRID_SIZE);
-            *col = randomCoordinate(GRID_SIZE);
-        } while (opponent->grid[*row][*col] == hit || opponent->grid[*row][*col] == miss);
-    }
-    else
-    {
-        *row = player->foundShips->head->row;
-        *col = player->foundShips->head->col;
-
-        player->foundShips->head = player->foundShips->head->next;
-        return;
     }
 }
 
