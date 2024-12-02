@@ -1124,7 +1124,7 @@ int radarSweep(Player *player, Player *opponent)
                 col + j >= 0 && col + j < GRID_SIZE)
             {
                 int gridSymbol = opponent->grid[row + i][col + j];
-                if (!inList(player->radaredList->head, row + i, col + j))
+                if (player->isBot && !inList(player->radaredList->head, row + i, col + j))
                 {
                     addCell(&(player->radaredList->head), row + i, col + j);
                 }
