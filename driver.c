@@ -436,7 +436,7 @@ void displayGrid(Player *player)
             case hit:
                 c = '*';
               break;
-            //default: // undiscovered: cell empty or has a ship (ships not displayed on grid)*/
+            default: // undiscovered: cell empty or has a ship (ships not displayed on grid)*/
                c = '~';
                 break;
             }
