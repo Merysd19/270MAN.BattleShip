@@ -1,15 +1,15 @@
-/*run from command prompt for optimal "clear screen" resutls*/
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <string.h> 
+#include <string.h>
 #include <math.h>
+#include <ctype.h>
 
 #define MOVES_COUNT 5
 #define SHIPS_COUNT 4
 #define GRID_SIZE 10
 
+// stucts
 typedef struct ship
 {
     char name[20];
@@ -23,17 +23,17 @@ typedef struct move
     int shipsSunkToUnlock;
 } Move;
 
-typedef struct cell // Define and typedef `Cell` the same time
+typedef struct cell // Define and typedef Cell the same time
 {
     int col;
     int row;
-    struct cell *next; // Correct self-referencing with `struct cell*`
+    struct cell *next; // Correct self-referencing with struct cell*
 } Cell;
 
-typedef struct smokedCells
+typedef struct cellList
 {
     Cell *head;
-} SmokedCells;
+} CellList;
 
 // player:
 typedef struct player
@@ -43,8 +43,14 @@ typedef struct player
     int shipsSunk;
     Ship *ships;
     Move *moves;
-    SmokedCells *smokedCells;
-
+    CellList *smokedCells;
+    // BOT
+    int isBot;
+    int difficulty;
+    CellList *botsShipsCoord;
+    CellList *botHitList;
+    CellList *radaredList;
+    CellList *foundShips;
 } Player;
 
 // for the cells of the grid:
@@ -61,13 +67,25 @@ enum cellStates
 
 // FUNCTIONS:
 
+int chooseMode();
+
 Player createPlayer();
+
+Player createBotPlayer(int difficulty);
 
 Ship *createShips();
 
 Move *createMoves();
 
-SmokedCells *createSmokedList();
+Cell *createCell(int row, int col);
+
+CellList *createList();
+
+void addCell(Cell **head, int row, int col);
+
+void removeCell(Cell **head, int row, int col);
+
+int inList(Cell *head, int row, int col);
 
 // grid:
 int **createGrid();
@@ -81,37 +99,51 @@ void placeShip(Player *player, int shipSize);
 
 int canPlaceShip(Player *player, int shipSize, int row, int col, char orientation);
 
+void botPlaceShip(Player *player, int shipSize);
+
+int botShipOverlap(Player *player, int shipSize, int row, int col, int isVertical);
+
 char *getShipName(int i); // i: 2->5
 
 void clearInputBuffer();
 
 // game play:
-void takeTurn(Player *player, Player *opponent);
+void takeTurn(Player *player, Player *opponent); // modified for bot
 
 void displayAvailableMoves(Player *player, Player *opponent);
 
-int makeMove(Player *player, Player *opponent);
+int makeMove(Player *player, Player *opponent); // modified for bot
 
 int gameOver(Player *opponent, Player *player);
 
+int decideTarget(Player *bot);
+
+void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col);
+
+void searchForHits(Player *player, Player *opponent, int* row, int* col);
+
 // moves + their helper functions:
-int fire(Player *player, Player *opponent);
+int fire(Player *player, Player *opponent, int decision); // modified for bot
 
-int radarSweep(Player *player, Player *opponent);
+int radarSweep(Player *player, Player *opponent); // modified for bot
 
-int smokeScreen(Player *player, Player *opponent);
+int smokeScreen(Player *player, Player *opponent); // modified for bot
 
-int artillery(Player *player, Player *opponent);
+int artillery(Player *player, Player *opponent, int decision); // modified for bot
 
-int torpedo(Player *player, Player *opponent);
+int torpedo(Player *player, Player *opponent, int decision); // modified for bot
+
+int randomCoordinate(int upperBound);
 
 int checkAvailable(Player *player, int move);
 
+int botCheckAvailable(Player *player, int moveChosen);
+
+void chooseTopLeftMeaningfully(Cell *head1, Cell *head2, int *row, int *col);
+
+void chooseTopLeftMeaningfullyHelper(Cell *current, int *row, int *col);
+
 int validTopLeftCoordinate(int row, int col);
-
-Cell *createSmokedCell(int col, int row);
-
-int inSmokedList(Player *opponent, int row, int col);
 
 void updateGameState(Player *opponent, Player *player);
 
@@ -121,7 +153,9 @@ void checkOneRoundMoves(Player *player, int move);
 
 int strcmpIgnoreNull(char *str1, char *str2);
 
-void freeAll(Player player);
+void freeAll(Player *player);
+
+void freeList(CellList *list);
 
 // tracking difficulty level
 int mode;
@@ -133,21 +167,39 @@ int main()
 
     srand(time(NULL)); // seed the random number generator with current time
 
+    // player chooses: player vs player, OR player vs bot
+
     Player player1 = createPlayer();
-    Player player2 = createPlayer();
+    // if bot, player2 is a bot
+    Player player2;
 
     // read game mode:
 
-    mode = chooseDifficulty();
+    mode = chooseMode();
     printf("\n");
 
     // read players names:
+    // Player1
     printf("Please enter your names!\nPlayer1: ");
-    scanf_s(" %99s", player1.name, 100);
-    printf("Player2: ");
-    scanf_s(" %99s", player2.name, 100);
+    scanf(" %99s", player1.name, 100);
+    // Player2 :Bot or Human?
+    printf("Player vs Bot (1) OR Player vs Player (0): ");
+    int isBot;
+    scanf("%d", &isBot);
 
-    printf("\n");
+    if (isBot)
+    {
+        printf("Choose bot difficulty (0: Easy, 1: Medium, 2: Hard): ");
+        int botDifficulty;
+        scanf("%d", &botDifficulty);
+        player2 = createBotPlayer(botDifficulty);
+    }
+    else
+    {
+        player2 = createPlayer();
+        printf("Player2: ");
+        scanf(" %99s", player2.name, 100);
+    }
 
     // display grids:
     printf("%s: \n", player1.name);
@@ -177,12 +229,12 @@ int main()
     printf("Placing your ships: \n");
     printf("\n");
     getchar();
-    printf("%s will start!\n", startingPlayer->name);
+    printf("%s will start! Press enter to proceed.\n", startingPlayer->name);
     printf("\n");
     getchar();
     system("cls");
     placeShips(startingPlayer);
-    printf("Now is %s's turn!\n", otherPlayer->name);
+    printf("Now is %s's turn! Press enter to proceed.\n", otherPlayer->name);
     printf("\n");
     getchar();
     system("cls");
@@ -205,14 +257,14 @@ int main()
     }
 
     // free memory allocated for the players:
-    freeAll(player1);
-    freeAll(player2);
+    freeAll(&player1);
+    freeAll(&player2);
 
     return 0;
 }
 
 /*-------------------------------------------------Game Setup and Initialization-------------------------------------------------------*/
-int chooseDifficulty()
+int chooseMode()
 {
     char input[10]; // Buffer for input
     int mode;
@@ -226,7 +278,7 @@ int chooseDifficulty()
 
         // Validate if the input is a number
         int validInput = 1; // Flag to check if input is valid
-        for (int i = 0; i < strlen(input); i++)
+        for (size_t i = 0; i < strlen(input); i++)
         {
             if (!isdigit(input[i])) // Check if each character is a digit
             {
@@ -263,8 +315,24 @@ Player createPlayer()
     player.shipsSunk = 0;
     player.ships = createShips();
     player.moves = createMoves();
-    player.smokedCells = createSmokedList();
+    player.smokedCells = createList();
+    player.isBot = 0;       // Default to human player
+    player.difficulty = -1; // Not applicable for human player
     return player;
+}
+
+Player createBotPlayer(int difficulty)
+{
+    Player bot = createPlayer();
+    strcpy(bot.name, "Bot");
+    bot.isBot = 1;               // Mark as bot
+    bot.difficulty = difficulty; // Set bot difficulty
+    // No need to allocate grid again since createPlayer() already does it
+    bot.botsShipsCoord = createList();
+    bot.botHitList = createList();
+    bot.radaredList = createList();
+    bot.foundShips = createList();
+    return bot;
 }
 
 Ship *createShips()
@@ -304,16 +372,16 @@ Move *createMoves()
     return moves;
 }
 
-SmokedCells *createSmokedList()
+CellList *createList()
 {
-    SmokedCells *smokedCells = (SmokedCells *)malloc(sizeof(SmokedCells));
-    if (smokedCells == NULL)
+    CellList *list = (CellList *)malloc(sizeof(CellList));
+    if (list == NULL)
     {
         printf("Failed to allocate needed memory\n");
         exit(1);
     }
-    smokedCells->head = NULL;
-    return smokedCells;
+    list->head = NULL;
+    return list;
 }
 
 int **createGrid()
@@ -360,16 +428,16 @@ void displayGrid(Player *player)
             switch (player->grid[i][j])
             {
             case miss:
-                if (mode == 0) // easy mode, show miss
+                if (mode == 0) // easy mode, show miss*/
                     c = 'o';
-                else // hard mode, don't show miss
+               else // hard mode, don't show miss*/
                     c = '~';
-                break;
+               break;
             case hit:
                 c = '*';
-                break;
-            default: // undiscovered: cell empty or has a ship (ships not displayed on grid)
-                c = '~';
+              break;
+            //default: // undiscovered: cell empty or has a ship (ships not displayed on grid)*/
+               c = '~';
                 break;
             }
             printf(" %c", c);
@@ -380,23 +448,32 @@ void displayGrid(Player *player)
 
 void placeShips(Player *player)
 {
-    // instructions:
-    printf("These are your ships and their sizes: \ncarrier, 5 cells\nbattleship, 4 cells\ndestroyer, 3 cells\nsubmarine, 2 cells\n");
-    printf("\n");
-    printf("Please provide the coordinates and orientation to place each ship on the grid (e.g. B3, Horizontal).\n");
-    printf("The coordinates indicate the starting position of the ship. Horizontal orientation moves from left to right, and vertical orientation moves from top to bottom.\n");
-    printf("Follow this exact format: \ncoordinates: ColumnRow  (CapitalLetter[A->J]Number[1->10]) (e.g. B3)\norientation: 'H' for horizontal, 'V' for vertical\n");
-    printf("\n");
-    printf("Your input:\n");
-
-    for (int i = 5; i > 1; i--) // i = ship size
+    if (!(player->isBot))
     {
-        placeShip(player, i);
+        // instructions:
+        printf("These are your ships and their sizes: \ncarrier, 5 cells\nbattleship, 4 cells\ndestroyer, 3 cells\nsubmarine, 2 cells\n");
+        printf("\n");
+        printf("Please provide the coordinates and orientation to place each ship on the grid (e.g. B3, Horizontal).\n");
+        printf("The coordinates indicate the starting position of the ship. Horizontal orientation moves from left to right, and vertical orientation moves from top to bottom.\n");
+        printf("Follow this exact format: \ncoordinates: ColumnRow  (CapitalLetter[A->J]Number[1->10]) (e.g. B3)\norientation: 'H' for horizontal, 'V' for vertical\n");
+        printf("\n");
+        printf("Your input:\n");
     }
 
-    getchar();
+    for (int shipSize = 5; shipSize > 1; shipSize--)
+    {
+        if (!(player->isBot))
+        {
+            placeShip(player, shipSize);
+            getchar();
+        }
+        else
+        {
+            botPlaceShip(player, shipSize);
+        }
+    }
 
-    printf("Done placing your ships! Press enter to proceed\n");
+    printf("Done placing %s's ships! Press enter to proceed\n", player->name);
 
     getchar();
     system("cls");
@@ -439,7 +516,7 @@ void placeShip(Player *player, int shipSize)
             }
         }
     }
-    else // try agin with same ship
+    else // try again with same ship
     {
         placeShip(player, shipSize);
     }
@@ -490,6 +567,68 @@ int canPlaceShip(Player *player, int shipSize, int row, int col, char orientatio
     return 1;
 }
 
+void botPlaceShip(Player *player, int shipSize)
+{
+    int row, col, isVertical;
+
+    do
+    {
+        isVertical = rand() % 2;
+        if (isVertical)
+        {
+            row = randomCoordinate(GRID_SIZE - shipSize + 1);
+            col = randomCoordinate(GRID_SIZE);
+        }
+        else
+        {
+            row = randomCoordinate(GRID_SIZE);
+            col = randomCoordinate(GRID_SIZE - shipSize + 1);
+        }
+    } while (botShipOverlap(player, shipSize, row, col, isVertical));
+
+    if (isVertical)
+    {
+        for (int j = row; j < row + shipSize; j++)
+        {
+            player->grid[j][col] = shipSize;
+            addCell(&(player->botsShipsCoord->head), j, col);
+        }
+    }
+    else
+    {
+        for (int j = col; j < col + shipSize; j++)
+        {
+            player->grid[row][j] = shipSize;
+            addCell(&(player->botsShipsCoord->head), row, j);
+        }
+    }
+}
+
+int botShipOverlap(Player *player, int shipSize, int row, int col, int isVertical)
+{
+    if (isVertical)
+    {
+        for (int j = row; j < row + shipSize; j++)
+        {
+            if (player->grid[j][col] != empty)
+            {
+                return 1;
+            }
+        }
+    }
+    else
+    {
+        for (int j = col; j < col + shipSize; j++)
+        {
+            if (player->grid[row][j] != empty)
+            {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 char *getShipName(int i)
 {
     char *name;
@@ -511,34 +650,45 @@ char *getShipName(int i)
     return name;
 }
 
-void clearInputBuffer() {
+void clearInputBuffer()
+{
     int c;
-    while ((c = getchar()) != '\n' && c != EOF);
+    while ((c = getchar()) != '\n' && c != EOF)
+        ;
 }
 /*-----------------------------------------------------------Game Play-----------------------------------------------------------------*/
 
 void takeTurn(Player *player, Player *opponent)
 {
-    printf("%s's Turn! Press enter to proceed \n", player->name);
-    getchar();
-    system("cls");
-
-    printf("%s's current grid: \n\n", opponent->name);
-    displayGrid(opponent);
-
-    printf("\nAvailable moves: \n\n");
-    displayAvailableMoves(player, opponent);
-
-    if (makeMove(player, opponent)) // move complete, player did not loose their turn
+    if (player->isBot)
     {
+        // Bot's turn logic
+        printf("%s taking turn...\n", player->name);
+    }
+    else
+    {
+        printf("%s's Turn! Press enter to proceed \n", player->name);
+        getchar();
+        system("cls");
+
+        printf("%s's current grid: \n\n", opponent->name);
+        displayGrid(opponent);
+
+        printf("\nAvailable moves: \n\n");
+        displayAvailableMoves(player, opponent);
+    }
+    if (makeMove(player, opponent))
+    { // move complete, player did not lose their turn
         updateGameState(opponent, player);
         printf("\n%s's updated grid: \n\n", opponent->name);
         displayGrid(opponent);
     }
     else
     {
+
         getchar();
     }
+
     getchar();
     printf("\nPress enter to proceed!\n");
     getchar();
@@ -580,6 +730,85 @@ void displayAvailableMoves(Player *player, Player *opponent)
 
 int makeMove(Player *player, Player *opponent) // handle inputs that are not numbers
 {
+    // Bot logic
+    if (player->isBot)
+    {
+        int moveChosen = -1; // Move chosen by the bot
+        int result = 0;
+
+        if (botCheckAvailable(player, 4)) // choose torpedo whenever it's available
+        {
+            moveChosen = 4;
+        }
+        else if (botCheckAvailable(player, 3)) // else, choose artillery whenever available
+        {
+            moveChosen = 3;
+        }
+        else if (botCheckAvailable(player, 2)) // else, choose smoke smoke screen whenever available
+        {
+            moveChosen = 2;
+        }
+
+        else
+        {
+            do
+            {
+                int r = rand() % 101;
+                if (r >= 80)
+                {
+                    moveChosen = 1; // choose radar sweep
+                }
+                else
+                {
+                    moveChosen = 0; // choose fire
+                }
+            } while (!botCheckAvailable(player, moveChosen)); // ensure the move is valid, i.e. we did not exhaust all 3 radar sweeps available
+        }
+        
+        int decision = decideTarget(player); // 1 if target meaningfully, 0 if target randomly
+
+        // Execute the chosen move for Easy Bot
+        switch (moveChosen)
+        {
+        case 0:                                        // FIRE logic for Easy Bot
+            printf("Bot performing Fire.\n");          // Print bot's move
+            result = fire(player, opponent, decision); // Perform the FIRE move
+            break;
+
+        case 1: // RADAR SWEEP (Placeholder for Easy Bot Logic)
+            printf("Bot performs Radar Sweep.\n");
+            result = radarSweep(player, opponent);
+            break;
+
+        case 2: // SMOKE SCREEN (Placeholder for Easy Bot Logic)
+            printf("Bot uses Smoke Screen.\n");
+            result = smokeScreen(player, opponent);
+            break;
+
+        case 3: // ARTILLERY (Placeholder for Easy Bot Logic)
+            printf("Bot fires Artillery.\n");
+            result = artillery(player, opponent, decision);
+            break;
+
+        case 4: // TORPEDO (Placeholder for Easy Bot Logic)
+            printf("Bot fires Torpedo.\n");
+            result = torpedo(player, opponent, decision);
+            break;
+
+        default:
+            printf("Bot failed to make a valid move.\n");
+            return 0; // Skip turn if no valid move is made
+        }
+
+        if (result)
+        {
+            player->moves[moveChosen].countAvailable--; // Decrement move availability
+        }
+
+        return result; // Return whether the bot successfully made a move
+    }
+
+    // Human player logic
     char input[10];
     int move;
     int result = 0;
@@ -591,7 +820,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
 
         // Check if the input is a valid number
         int validInput = 1; // Flag to check if input is valid
-        for (int i = 0; i < strlen(input); i++)
+        for (size_t i = 0; i < strlen(input); i++)
         {
             if (!isdigit(input[i]))
             {
@@ -605,7 +834,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
             move = atoi(input); // Convert string to integer
 
             // Check if the move is within the valid range
-            if (move >= 0 && move < MOVES_COUNT) // Changed to < MOVES_COUNT
+            if (move >= 0 && move < MOVES_COUNT)
             {
                 checkOneRoundMoves(player, move);
 
@@ -617,7 +846,7 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
                 switch (move)
                 {
                 case 0:
-                    result = fire(player, opponent);
+                    result = fire(player, opponent, 0);
                     break;
                 case 1:
                     result = radarSweep(player, opponent);
@@ -626,10 +855,10 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
                     result = smokeScreen(player, opponent);
                     break;
                 case 3:
-                    result = artillery(player, opponent);
+                    result = artillery(player, opponent, 0);
                     break;
                 case 4:
-                    result = torpedo(player, opponent);
+                    result = torpedo(player, opponent, 0);
                     break;
                 default:
                     break;
@@ -651,205 +880,480 @@ int makeMove(Player *player, Player *opponent) // handle inputs that are not num
     return 1; // Return success
 }
 
-int fire(Player *player, Player *opponent)
+int decideTarget(Player *bot) // returns 1 if target meaninfully, 0 if target randomly
 {
-    int rw;
-    char cl;
-
-    printf("\nEnter coordinate (e.g. B3): ");
-    scanf(" %c%d", &cl, &rw);
-
-    int row = rw - 1;
-    int col = cl - 'A';
-
-    if (row < 0 || row > 9 || col < 0 || col > 9)
+    int percentage = 0;
+    int randVal;
+    if (bot->difficulty == 0) // bot difficulty: easy
     {
-        printf("\nInvalid coordinates! You loose your turn :(\n");
-        return 0;
+        percentage = 50;
     }
-    else
+    else if (bot->difficulty == 1) // medium
     {
-        int i = opponent->grid[row][col];
-        if (i > 1)
-        {
-            opponent->grid[row][col] = hit;
-            printf("\nResult: hit!\n");
+        percentage = 75;
+    }
+    else // hard
+    {
+        percentage = 100;
+    }
+    randVal = rand() % 101;
+    if (randVal <= percentage)
+    {
+        return 1;
+    }
+    return 0;
+}
 
-            for (int j = 0; j < SHIPS_COUNT; j++)
-            {
-                if (strcmpIgnoreNull(opponent->ships[j].name, getShipName(i)))
-                {
-                    opponent->ships[j].remainingHits--;
-                }
-            }
+void setCoordsMeaningfully(Player *player, Player *opponent, int *row, int *col)
+{
+        Cell *current = player->botHitList->head;
+        Cell *radarCell = player->radaredList->head;
+
+        if (radarCell != NULL) {
+            *row = radarCell->row;
+            *col = radarCell->col;
+            player->radaredList->head = radarCell->next;
+            return;
+        }
+
+        if (current == NULL)
+        {
+            searchForHits(player, opponent, row, col);
         }
         else
         {
-            if (i != hit)
+
+            int direction = 0;
+
+            int baseRow = current->row;
+            int baseCol = current->col;
+
+            for (int i = 0; i < 4; i++)
             {
-                opponent->grid[row][col] = miss;
+                int targetRow = baseRow, targetCol = baseCol;
+
+                // hit's neighbors
+                switch(direction)
+                {
+                case 0:
+                    targetRow++;
+                    break; // Down
+                case 1:
+                    targetRow--;
+                    break; // Up
+                case 2:
+                    targetCol--;
+                    break; // Left
+                case 3:
+                    targetCol++;
+                    break; // Right
+                }
+
+                // // Checking  bounds and whether the cell is undiscovered
+                if (targetRow >= 0 && targetRow < GRID_SIZE &&
+                    targetCol >= 0 && targetCol < GRID_SIZE &&
+                    opponent->grid[targetRow][targetCol] != hit &&
+                    opponent->grid[targetRow][targetCol] != miss)
+                {
+                    *row = targetRow;
+                    *col = targetCol;
+                    current = current->next;
+                    return;
+                }
+
+                // Rotate direction clockwise: if the current direction does not lead to a valid cell-->rotates to the next direction
+                direction = (direction + 1) % 4;
             }
-            printf("\nResult: miss!\n");
+
+            searchForHits(player, opponent, row, col);
+            current = current->next;
         }
+}
+
+//when the hitList is empty, it chooses coordinates with higher chance of having a ship
+void searchForHits(Player *player, Player *opponent, int* row, int* col) {
+    int coordsToCheck[9][2] = {
+            {0, 0}, {0, 4}, {0, 9},
+            {4, 0}, {4, 4}, {4, 9},
+            {9, 0}, {9, 4}, {9, 9}
+        };
+
+    for (int i = 0; i < 9; i++) {
+        int targetCol = coordsToCheck[i][0];
+        int targetRow = coordsToCheck[i][1];
+
+        if (targetRow >= 0 && targetRow < GRID_SIZE &&
+            targetCol >= 0 && targetCol < GRID_SIZE &&
+            opponent->grid[targetRow][targetCol] != hit &&
+            opponent->grid[targetRow][targetCol] != miss) {
+
+            *row = targetRow;
+            *col = targetCol;
+            return;
+        }
+    }
+
+    //if all were visited, choose random coordinates
+    do {
+        *row = randomCoordinate(GRID_SIZE);
+        *col = randomCoordinate(GRID_SIZE);
+    } while (opponent->grid[*row][*col] == hit || opponent->grid[*row][*col] == miss);
+
+}
+
+int fire(Player *player, Player *opponent, int decision)
+{
+    int row = -1, col = -1;
+
+    if (player->isBot)
+    {
+        if (decision == 1) // target meaningfully
+        {
+            /*setCoordsMeaningfully(player, opponent, &row, &col);*/
+            setCoordsMeaningfully(player, opponent, &row, &col);
+        }
+        else // target randomly
+        {
+            do
+            {
+                row = randomCoordinate(GRID_SIZE);
+                col = randomCoordinate(GRID_SIZE);
+            } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
+        }
+    }
+    else
+    {
+        // Human Player Logic
+        char cl;
+        int rw;
+
+        printf("\nEnter coordinate (e.g. B3): ");
+        scanf(" %c%d", &cl, &rw);
+
+        row = rw - 1;
+        col = cl - 'A';
+
+        if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE)
+        {
+            printf("\nInvalid coordinates! You lose your turn :(\n");
+            return 0;
+        }
+    }
+
+    // Fire at the chosen coordinates
+    int cell = opponent->grid[row][col];
+    
+    if (cell > 1)
+    {
+        opponent->grid[row][col] = hit;
+        if (player->isBot)
+        {
+            addCell(&(player->botHitList->head), row, col);
+        }
+        printf("\nResult: hit!\n");
+
+        // Decrement the ship's remaining hits
+        for (int j = 0; j < SHIPS_COUNT; j++)
+        {
+            if (strcmpIgnoreNull(opponent->ships[j].name, getShipName(cell)))
+            {
+                opponent->ships[j].remainingHits--;
+            }
+        }
+    }
+    else
+    {
+        if (cell != hit)
+        {
+            opponent->grid[row][col] = miss;
+        }
+        printf("\nResult: miss!\n");
     }
     return 1;
 }
 
 int radarSweep(Player *player, Player *opponent)
 {
-    int rw;
-    char cl;
+    int row = -1, col = -1;
 
-    printf("\nEnter top-left coordinate (e.g. B3): ");
-    scanf(" %c%d", &cl, &rw);
+    if (player->isBot)
+    {   
+        if (player->botHitList->head != NULL)
+        {   
 
-    int row = rw - 1;
-    int col = cl - 'A';
-
-    if (validTopLeftCoordinate(row, col))
-    {
-        for (int i = 0; i < 2; i++)
+            do
+            {
+                chooseTopLeftMeaningfully(player->botHitList->head, player->radaredList->head, &row, &col);
+            } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
+        }
+        // randomly select a valid top-left coordinate
+        else
         {
-            for (int j = 0; j < 2; j++)
+            do
+            {
+                row = randomCoordinate(GRID_SIZE - 1);
+                col = randomCoordinate(GRID_SIZE - 1);
+                
+            } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
+        }
+    }
+    else
+    {
+        // Human Player Logic
+        char cl;
+        int rw;
+
+        printf("\nEnter top-left coordinate (e.g. B3): ");
+        scanf(" %c%d", &cl, &rw);
+
+        row = rw - 1;
+        col = cl - 'A';
+
+        if (!validTopLeftCoordinate(row, col))
+        {
+            return 0;
+        }
+    }
+
+    // Radar Sweep Logic
+    for (int i = 0; i < 2; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            if (row + i >= 0 && row + i < GRID_SIZE &&
+                col + j >= 0 && col + j < GRID_SIZE)
             {
                 int gridSymbol = opponent->grid[row + i][col + j];
+                if (!inList(player->radaredList->head, row + i, col + j))
+                {
+                    addCell(&(player->radaredList->head), row + i, col + j);
+                }
                 if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
                 {
-                    if (inSmokedList(opponent, row, col) == 0)
+                    if (inList(opponent->smokedCells->head, row + i, col + j) == 0)
                     {
-                        printf("\nResult: enemy ships found!\n");
-                        return 1;
+                        if (!(player->isBot))
+                        {
+                            printf("\nResult: enemy ships found!\n");
+                            return 1;
+                        }
+                        else
+                        {
+                            addCell(&(player->foundShips->head), row + i, col + j);
+                        }
                     }
                 }
             }
         }
+    }
+    if (!(player->isBot))
+    {
         printf("\nResult: no enemy ships found!\n");
-
         return 1;
     }
-    return 0;
+    return 1;
 }
 
 int smokeScreen(Player *player, Player *opponent)
 {
-    int rw;
-    char cl;
+    int row = -1, col = -1;
 
-    printf("\nEnter top-left coordinate (e.g. B3): ");
-    scanf(" %c%d", &cl, &rw);
-
-    int row = rw - 1;
-    int col = cl - 'A';
-
-    if (validTopLeftCoordinate(row, col))
+    if (player->isBot)
     {
-        for (int i = 0; i < 2; i++)
+        chooseTopLeftMeaningfully(player->botsShipsCoord->head, player->smokedCells->head, &row, &col);
+    }
+    else
+    {
+        // Human Player Logic
+        char cl;
+        int rw;
+
+        printf("\nEnter top-left coordinate (e.g. B3): ");
+        scanf(" %c%d", &cl, &rw);
+
+        row = rw - 1;
+        col = cl - 'A';
+
+        if (!validTopLeftCoordinate(row, col))
         {
-            for (int j = 0; j < 2; j++)
+            // printf("\nInvalid coordinates! You lose your turn :(\n");
+            return 0;
+        }
+    }
+
+    // Perform Smoke Screen Logic
+    for (int i = 0; i < 2; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            int gridSymbol = player->grid[row + i][col + j];
+            if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
             {
-                int gridSymbol = player->grid[row + i][col + j];
-                if (gridSymbol != hit && gridSymbol != miss && gridSymbol != empty)
+                if (inList(player->smokedCells->head, row + i, col + j) == 0)
                 {
-                    if (inSmokedList(opponent, row, col) == 0)
-                    {
-                        Cell *newCell = createSmokedCell(col, row);
-                        newCell->next = player->smokedCells->head;
-                        player->smokedCells->head = newCell;
-                    }
+                    addCell(&(player->smokedCells->head), col + j, row + i);
                 }
             }
         }
+    }
+    if (!(player->isBot))
+    {
         getchar();
         printf("\nSMOKE SCREEN performed! Press enter to proceed \n");
         getchar();
         system("cls");
-        return 1;
     }
-    return 0;
+    return 1;
 }
 
-int artillery(Player *player, Player *opponent)
+int artillery(Player *player, Player *opponent, int decision)
 {
-    int rw;
-    char cl;
+    int row = -1, col = -1;
 
-    printf("\nEnter top-left coordinate (e.g. B3): ");
-    scanf(" %c%d", &cl, &rw);
-
-    int row = rw - 1;
-    int col = cl - 'A';
-
-    if (validTopLeftCoordinate(row, col))
+    if (player->isBot)
     {
-        int h = 0; // nb of hits
-        for (int i = 0; i < 2; i++)
+        if (decision == 1) // target meaningfully
         {
-            for (int j = 0; j < 2; j++)
+            do
             {
-                int gridSymbol = opponent->grid[row + i][col + j];
-                if (gridSymbol > 1)
-                {
-                    opponent->grid[row + i][col + j] = hit;
-                    h++;
-                    for (int k = 0; k < SHIPS_COUNT; k++)
-                    {
-                        if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
-                        {
-                            opponent->ships[k].remainingHits--;
-                        }
-                    }
-                }
-                else
-                {
-                    if (gridSymbol != hit)
-                    {
-                        opponent->grid[row + i][col + j] = miss;
-                    }
-                }
-            }
+                setCoordsMeaningfully(player, opponent, &row, &col);
+            } while (!(row < 9 && row >= 0 && col < 9 && col >= 0));
         }
-        if (h > 0)
+        else // target randomly
         {
-            printf("\nResult: hit!\n");
+            do
+            {
+                row = randomCoordinate(GRID_SIZE - 1);
+                col = randomCoordinate(GRID_SIZE - 1);
+            } while (opponent->grid[row][col] == hit || opponent->grid[row][col] == miss);
         }
-        else
-        {
-            printf("\nResult: miss!\n");
-        }
-        return 1;
-    }
-    return 0;
-}
-
-int torpedo(Player *player, Player *opponent)
-{
-    // read target row or column
-    char input;
-    int row = -1;
-    int col = -1;
-    printf("\nEnter row (e.g. 3) or column (e.g. B): ");
-    scanf(" %c", &input);
-
-    // validate input
-    if (input >= 'A' && input <= 'J')
-    {
-        col = input - 'A';
-    }
-    else if (input >= '1' && input <= '9' + 1)
-    {
-        row = input - '1';
     }
     else
     {
-        printf("\nInvalid coordinates! You loose your turn :(\n");
-        getchar();
-        return 0;
+        // Human Player Logic
+        char cl;
+        int rw;
+
+        printf("\nEnter top-left coordinate (e.g. B3): ");
+        scanf(" %c%d", &cl, &rw);
+
+        row = rw - 1;
+        col = cl - 'A';
+
+        if (!validTopLeftCoordinate(row, col))
+        {
+            // printf("\nInvalid coordinates! You lose your turn :(\n");
+            return 0;
+        }
+    }
+        
+    
+
+    // Artillery Logic
+    int h = 0; // Number of hits
+    for (int i = 0; i < 2; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            int gridSymbol = opponent->grid[row + i][col + j];
+            if (gridSymbol > 1)
+            {
+                opponent->grid[row + i][col + j] = hit;
+                h++;
+                if (player->isBot)
+                {
+                    addCell(&(player->botHitList->head), row + i, col + j);
+                }
+                for (int k = 0; k < SHIPS_COUNT; k++)
+                {
+                    if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
+                    {
+                        opponent->ships[k].remainingHits--;
+                    }
+                }
+            }
+            else
+            {
+                if (gridSymbol != hit)
+                {
+                    opponent->grid[row + i][col + j] = miss;
+                }
+            }
+        }
+    }
+    if (h > 0)
+    {
+        printf("\nResult: hit!\n");
+    }
+    else
+    {
+        printf("\nResult: miss!\n");
+    }
+    return 1;
+}
+
+int torpedo(Player *player, Player *opponent, int decision)
+{
+    int row = -1;
+    int col = -1;
+
+    if (player->isBot)
+    {
+        if (decision == 1)          // target meaningfully
+        {                           // BRUTEFORCE
+            int isRow = rand() % 2; // Randomly choose between row or column
+            setCoordsMeaningfully(player, opponent, &row, &col);
+            if (isRow)
+            {
+                col = -1;
+            }
+            else
+            {
+                row = -1;
+            }
+        }
+        else // target randomly
+        {
+            int isRow = rand() % 2; // Randomly choose between row or column
+            if (isRow)
+            {
+                row = randomCoordinate(GRID_SIZE);
+            }
+            else
+            {
+                col = randomCoordinate(GRID_SIZE);
+            }
+        }
+    }
+    else
+    {
+        // Human Player Logic
+        char input;
+        printf("\nEnter row (e.g. 3) or column (e.g. B): ");
+        scanf(" %c", &input);
+
+        // Validate input
+        if (input >= 'A' && input <= 'J')
+        {
+            col = input - 'A';
+        }
+        else if (input >= '1' && input <= '9' + 1)
+        {
+            row = input - '1';
+        }
+        else
+        {
+            printf("\nInvalid coordinates! You lose your turn :(\n");
+            getchar();
+            return 0;
+        }
     }
 
-    int h = 0; // nb of hits
+    // Perform Torpedo Logic
+    int h = 0; // Number of hits
 
-    if (col == -1) // target a row
-    {
+    if (col == -1)
+    { // Target a row
         for (int i = 0; i < GRID_SIZE; i++)
         {
             int gridSymbol = opponent->grid[row][i];
@@ -857,6 +1361,10 @@ int torpedo(Player *player, Player *opponent)
             {
                 opponent->grid[row][i] = hit;
                 h++;
+                if (player->isBot)
+                {
+                    addCell(&(player->botHitList->head), row, i);
+                }
                 for (int k = 0; k < SHIPS_COUNT; k++)
                 {
                     if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
@@ -873,25 +1381,20 @@ int torpedo(Player *player, Player *opponent)
                 }
             }
         }
-        if (h > 0)
-        {
-            printf("\nResult: hit!\n");
-        }
-        else
-        {
-            printf("\nResult: miss!\n");
-        }
-        return 1;
     }
-    else // target a column
-    {
+    else
+    { // Target a column
         for (int i = 0; i < GRID_SIZE; i++)
         {
             int gridSymbol = opponent->grid[i][col];
             if (gridSymbol > 1)
             {
                 opponent->grid[i][col] = hit;
-                printf("\n\nResult: hit!\n\n");
+                h++;
+                if (player->isBot)
+                {
+                    addCell(&(player->botHitList->head), i, col);
+                }
                 for (int k = 0; k < SHIPS_COUNT; k++)
                 {
                     if (strcmpIgnoreNull(opponent->ships[k].name, getShipName(gridSymbol)))
@@ -908,16 +1411,57 @@ int torpedo(Player *player, Player *opponent)
                 }
             }
         }
-        if (h > 0)
-        {
-            printf("\nResult: hit!\n");
-        }
-        else
-        {
-            printf("\nResult: miss!\n");
-        }
-        return 1;
     }
+
+    if (h > 0)
+    {
+        printf("\nResult: hit!\n");
+    }
+    else
+    {
+        printf("\nResult: miss!\n");
+    }
+    return 1;
+}
+
+void addCell(Cell **head, int row, int col)
+{
+    if (inList(*head, row, col))
+    {
+        return;
+    }
+    Cell *newCell = createCell(row, col);
+    newCell->next = *head; // insert at the head of the list
+    *head = newCell;
+}
+
+// remove a  hit from the list
+void removeCell(Cell **head, int row, int col)
+{
+    Cell *current = *head, *prev = NULL;
+    while (current != NULL)
+    {
+        if (current->row == row && current->col == col)
+        {
+            if (prev == NULL)
+            { // Remove the head
+                *head = current->next;
+            }
+            else
+            {
+                prev->next = current->next;
+            }
+            free(current);
+            return;
+        }
+        prev = current;
+        current = current->next;
+    }
+}
+
+int randomCoordinate(int upperBound)
+{
+    return rand() % upperBound;
 }
 
 void checkOneRoundMoves(Player *player, int move)
@@ -930,7 +1474,6 @@ void checkOneRoundMoves(Player *player, int move)
         if (move != movesToCheck[i] && player->moves[movesToCheck[i]].countAvailable == 1)
         {
             player->moves[movesToCheck[i]].countAvailable--;
-            // printf("You lost the move %s", player->moves[movesToCheck[i]].name);
         }
     }
 }
@@ -946,6 +1489,56 @@ int checkAvailable(Player *player, int move)
     return 1;
 }
 
+int botCheckAvailable(Player *player, int moveChosen)
+{
+    if (player->moves[moveChosen].countAvailable == 0)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+void chooseTopLeftMeaningfully(Cell *head1, Cell *head2, int *row, int *col)
+{
+    Cell *current = head1;
+    while (current != NULL)
+    {
+        if (!inList(head2, current->row, current->col))
+        {
+            chooseTopLeftMeaningfullyHelper(current, row, col);
+            return;
+        }
+        else
+        {
+            current = current->next;
+        }
+    }
+}
+
+void chooseTopLeftMeaningfullyHelper(Cell *current, int *row, int *col)
+{
+    if (current->row < 9 && current->row >= 0 && current->col < 9 && current->col >= 0)
+    {
+        *row = current->row;
+        *col = current->col;
+    }
+    else if (!(current->row < 9 && current->row >= 0) && (current->col < 9 && current->col >= 0))
+    {
+        *row = current->row - 1;
+        *col = current->col;
+    }
+    else if (!(current->col < 9 && current->col >= 0) && (current->row < 9 && current->row >= 0))
+    {
+        *col = current->col - 1;
+        *row = current->row;
+    }
+    else
+    {
+        *row = current->row - 1;
+        *col = current->col - 1;
+    }
+}
+
 int validTopLeftCoordinate(int row, int col)
 {
     if (row < 9 && row >= 0 && col < 9 && col >= 0)
@@ -957,7 +1550,7 @@ int validTopLeftCoordinate(int row, int col)
     return 0;
 }
 
-Cell *createSmokedCell(int col, int row)
+Cell *createCell(int col, int row)
 {
     Cell *newCell = (Cell *)malloc(sizeof(Cell));
     if (newCell == NULL)
@@ -971,9 +1564,9 @@ Cell *createSmokedCell(int col, int row)
     return newCell;
 }
 
-int inSmokedList(Player *player, int row, int col)
+int inList(Cell *head, int row, int col)
 {
-    Cell *current = player->smokedCells->head;
+    Cell *current = head;
     while (current != NULL)
     {
         if (current->col == col && current->row == row)
@@ -992,7 +1585,7 @@ void updateGameState(Player *opponent, Player *player)
     {
         if (opponent->ships[i].remainingHits == 0)
         {
-            opponent->ships[i].remainingHits--;
+            opponent->ships[i].remainingHits--; // when we sink the next ship, the current sunk ship has remaining hits = -1, so we do not print about it :)
             opponent->shipsSunk++;
             printf("\nOne of %s's ships, a %s, has been sunk!\n", opponent->name, getShipName(i + 2));
             updateMoves(opponent, player);
@@ -1007,7 +1600,6 @@ void updateMoves(Player *opponent, Player *player)
         if (player->moves[j].shipsSunkToUnlock <= opponent->shipsSunk)
         {
             player->moves[j].countAvailable++;
-            // printf("You've unlocked a %s!\n", player->moves[j].name);
         }
     }
 }
@@ -1022,24 +1614,6 @@ int gameOver(Player *opponent, Player *player)
         return 1;
     }
     return 0;
-}
-
-void freeAll(Player player)
-{
-    for (int i = 0; i < 10; i++)
-    {
-        free(player.grid[i]);
-    }
-    free(player.grid);
-    free(player.ships);
-    free(player.moves);
-    Cell *current = player.smokedCells->head;
-    while (current != NULL)
-    {
-        Cell *temp = current;
-        current = current->next;
-        free(temp);
-    }
 }
 
 int strcmpIgnoreNull(char *str1, char *str2)
@@ -1063,4 +1637,38 @@ int strcmpIgnoreNull(char *str1, char *str2)
     }
 
     return 1;
+}
+
+void freeAll(Player *player)
+{
+    for (int i = 0; i < 10; i++)
+    {
+        free(player->grid[i]);
+    }
+    free(player->grid);
+    free(player->ships);
+    free(player->moves);
+    freeList(player->smokedCells);
+
+    if (player->isBot)
+    {
+        freeList(player->botHitList);
+        freeList(player->botsShipsCoord);
+        freeList(player->radaredList);
+        freeList(player->foundShips);
+    }
+}
+
+void freeList(CellList *list)
+{
+    if (list == NULL)
+        return;
+    Cell *current = list->head;
+    while (current != NULL)
+    {
+        Cell *temp = current;
+        current = current->next;
+        free(temp);
+    }
+    free(list);
 }
